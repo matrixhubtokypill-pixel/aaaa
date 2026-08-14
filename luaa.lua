@@ -1,4 +1,3 @@
-
 if not LPH_ENCSTR then
     LPH_ENCSTR = function(str) return str end
 end
@@ -2377,7 +2376,7 @@ end
 RunService.RenderStepped:Connect(GlobalESPUpdate)
 
 RunService.Heartbeat:Connect(function()
-    if getgenv().saved.Osiris['Player']['Headless'] and Self.Character then
+    if getgenv().saved.Osiris['Player']['Enabled POV Headless'] and Self.Character then
         local head = Self.Character:FindFirstChild("Head")
         if head then
             if head:FindFirstChildOfClass("SpecialMesh") then
