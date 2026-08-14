@@ -1431,18 +1431,72 @@ do
         return smoothedVelocity * Vector3.new(1, 0, 1)
     end
     
-    function Script:GetHitPosition(Mode)
-        if Mode == 'Assist' then
-            local Osiris = getgenv().saved.Osiris['Aim Assist']
-            local Object = Script.Locals.AimAssistTarget.Character
-            if not Object then return end  
+function Script:GetHitPosition(Mode)
+    if Mode == 'Assist' then
+        local Osiris = getgenv().saved.Osiris['Aim Assist']
+        local Object = Script.Locals.AimAssistTarget.Character
+        if not Object then return end  
+    
+        local Humanoid = Object:FindFirstChild("Humanoid")
+        if not Humanoid then return end 
+    
+        local NearestPart = Script:GetClosestPartToCursor(Object)
+        if not NearestPart then return end
         
-            local Humanoid = Object:FindFirstChild("Humanoid")
-            if not Humanoid then return end 
-        
-            local NearestPart = Script:GetClosestPartToCursor(Object)
-            local HitPosition
-        
+        local HitPosition
+    
+        -- Custom Parts OVERRIDES Hit Part when enabled
+        if Osiris['Custom Parts'] and Osiris['Custom Parts']['Enabled'] then
+            local customParts = Osiris['Custom Parts']['Parts'] or {}
+            local mode = Osiris['Custom Parts']['Mode'] or "Point"
+            
+            if mode == "Point" then
+                -- Find the closest custom part to cursor and get nearest point on it (GLIDES)
+                local closestPart = Script:GetClosestPartToCursorFilter(Object, customParts)
+                if closestPart then
+                    if Osiris['Nearest Point']['Mode'] == 'Smart' then
+                        HitPosition = Script:GetClosestPointOnPart(closestPart, Osiris['Nearest Point']['Scale'])
+                    else
+                        HitPosition = Script:GetClosestPointOnPartBasic(closestPart)
+                    end
+                else
+                    -- Fallback to nearest point on any part
+                    if Osiris['Nearest Point']['Mode'] == 'Smart' then
+                        HitPosition = Script:GetClosestPointOnPart(NearestPart, Osiris['Nearest Point']['Scale'])
+                    else
+                        HitPosition = Script:GetClosestPointOnPartBasic(NearestPart)
+                    end
+                end
+            elseif mode == "Part" then
+                -- WORKS LIKE "Nearest Part" - aims at CENTER of closest part from custom list
+                local closestPart = nil
+                local closestDistance = math.huge
+                
+                for _, partName in ipairs(customParts) do
+                    local part = Object:FindFirstChild(partName)
+                    if part and part:IsA("BasePart") then
+                        local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
+                        if onScreen then
+                            local mousePos = UserInputService:GetMouseLocation()
+                            local distance = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
+                            if distance < closestDistance then
+                                closestDistance = distance
+                                closestPart = part
+                            end
+                        end
+                    end
+                end
+                
+                if closestPart then
+                    -- AIM AT CENTER of the closest part (like "Nearest Part")
+                    HitPosition = closestPart.Position
+                else
+                    -- Fallback to regular Nearest Part behavior
+                    HitPosition = NearestPart.Position
+                end
+            end
+        else
+            -- Custom Parts is DISABLED, so use normal Hit Part setting
             if Osiris['Hit Part'] == 'Nearest Point' then
                 local NearestPoint
                 if Osiris['Nearest Point']['Mode'] == 'Smart' then
@@ -1456,57 +1510,138 @@ do
                 HitPosition = NearestPart.Position
         
             elseif typeof(Osiris['Hit Part']) == 'table' then
-                HitPosition = Script:GetClosestPartToCursorFilter(Object, Osiris['Hit Part']).Position
+                local part = Script:GetClosestPartToCursorFilter(Object, Osiris['Hit Part'])
+                if part then
+                    HitPosition = part.Position
+                else
+                    HitPosition = NearestPart.Position
+                end
         
             else
-                HitPosition = Object[Osiris['Hit Part']].Position
+                local targetPart = Object:FindFirstChild(Osiris['Hit Part'])
+                if targetPart then
+                    HitPosition = targetPart.Position
+                else
+                    HitPosition = NearestPart.Position
+                end
+            end
+        end
+    
+        -- Prediction applies regardless of what targeting mode is used
+        if Osiris['Prediction']['Enabled'] then
+            local BasePrediction = Vector3.new(Osiris['Prediction']['X'], Osiris['Prediction']['Y'], Osiris['Prediction']['Z'])
+            local Prediction = HitPosition + Script:GetResolvedVelocity(Object.HumanoidRootPart) * BasePrediction
+    
+            return Prediction
+        else
+            return HitPosition
+        end
+    end -- <-- THIS END WAS MISSING!
+    
+    if Mode == 'Silent' then 
+        local Osiris = getgenv().saved.Osiris['Silent Aim']
+        local Object = Script.Locals.SilentAimTarget.Character
+        if not Object then return end  
+        
+        local Humanoid = Object:FindFirstChild("Humanoid")
+        if not Humanoid then return end 
+        
+        local NearestPart = Script:GetClosestPartToCursor(Object)
+        if not NearestPart then return end
+        
+        local HitPosition
+        local HitPart = Osiris['Hit Part']
+        
+        if HitPart == 'Nearest Point' then
+            local NearestPoint
+            if Osiris['Nearest Point']['Mode'] == 'Smart' then
+                NearestPoint = Script:GetClosestPointOnPart(NearestPart, Osiris['Nearest Point']['Scale'])
+            else
+                NearestPoint = Script:GetClosestPointOnPartBasic(NearestPart)
+            end
+            HitPosition = NearestPoint
+        
+        elseif HitPart == 'Nearest Part' then
+            HitPosition = NearestPart.Position
+        
+        elseif typeof(HitPart) == 'table' then
+            local part = Script:GetClosestPartToCursorFilter(Object, HitPart)
+            if part then
+                HitPosition = part.Position
+            else
+                HitPosition = NearestPart.Position
             end
         
-            if Osiris['Prediction']['Enabled'] then
-                local BasePrediction = Vector3.new(Osiris['Prediction']['X'], Osiris['Prediction']['Y'], Osiris['Prediction']['Z'])
-                local Prediction = HitPosition + Script:GetResolvedVelocity(Object.HumanoidRootPart) * BasePrediction
-        
-                return Prediction
+        else
+            local targetPart = Object:FindFirstChild(HitPart)
+            if targetPart then
+                HitPosition = targetPart.Position
             else
-                return HitPosition
+                HitPosition = NearestPart.Position
             end
         end
         
-        if Mode == 'Silent' then 
-            local Osiris = getgenv().saved.Osiris['Silent Aim']
-            local Object = Script.Locals.SilentAimTarget.Character
-            if not Object then return end  
-            
-            local Humanoid = Object:FindFirstChild("Humanoid")
-            if not Humanoid then return end 
-            
-            local NearestPart = Script:GetClosestPartToCursor(Object)
-            local HitPosition
-            
-            local HitPart = Osiris['Hit Part']
-            
-            if HitPart == 'Nearest Point' then
-                local NearestPoint
-                if Osiris['Nearest Point']['Mode'] == 'Smart' then
-                    NearestPoint = Script:GetClosestPointOnPart(NearestPart, Osiris['Nearest Point']['Scale'])
-                else
-                    NearestPoint = Script:GetClosestPointOnPartBasic(NearestPart)
-                end
-                HitPosition = NearestPoint
-            
-            elseif HitPart == 'Nearest Part' then
-                HitPosition = NearestPart.Position
-            
-            elseif typeof(HitPart) == 'table' then
-                HitPosition = Script:GetClosestPartToCursorFilter(Object, HitPart).Position
-            
-            else
-                HitPosition = Object[HitPart].Position
-            end
-            
+        -- Prediction for Silent Aim
+        if Osiris['Prediction'] and Osiris['Prediction']['Enabled'] then
+            local BasePrediction = Vector3.new(Osiris['Prediction']['X'] or 0, Osiris['Prediction']['Y'] or 0, Osiris['Prediction']['Z'] or 0)
+            local Prediction = HitPosition + Script:GetResolvedVelocity(Object.HumanoidRootPart) * BasePrediction
+            return Prediction
+        else
             return HitPosition
-        end            
+        end
     end    
+    end 
+    if Mode == 'Silent' then 
+        local Osiris = getgenv().saved.Osiris['Silent Aim']
+        local Object = Script.Locals.SilentAimTarget.Character
+        if not Object then return end  
+        
+        local Humanoid = Object:FindFirstChild("Humanoid")
+        if not Humanoid then return end 
+        
+        local NearestPart = Script:GetClosestPartToCursor(Object)
+        local HitPosition
+        
+        local HitPart = Osiris['Hit Part']
+        
+        if HitPart == 'Nearest Point' then
+            local NearestPoint
+            if Osiris['Nearest Point']['Mode'] == 'Smart' then
+                NearestPoint = Script:GetClosestPointOnPart(NearestPart, Osiris['Nearest Point']['Scale'])
+            else
+                NearestPoint = Script:GetClosestPointOnPartBasic(NearestPart)
+            end
+            HitPosition = NearestPoint
+        
+        elseif HitPart == 'Nearest Part' then
+            HitPosition = NearestPart.Position
+        
+        elseif typeof(HitPart) == 'table' then
+            local part = Script:GetClosestPartToCursorFilter(Object, HitPart)
+            if part then
+                HitPosition = part.Position
+            else
+                HitPosition = NearestPart.Position
+            end
+        
+        else
+            local targetPart = Object:FindFirstChild(HitPart)
+            if targetPart then
+                HitPosition = targetPart.Position
+            else
+                HitPosition = NearestPart.Position
+            end
+        end 
+        -- Prediction applies regardless of what targeting mode is used
+        if Osiris['Prediction']['Enabled'] then
+            local BasePrediction = Vector3.new(Osiris['Prediction']['X'], Osiris['Prediction']['Y'], Osiris['Prediction']['Z'])
+            local Prediction = HitPosition + Script:GetResolvedVelocity(Object.HumanoidRootPart) * BasePrediction
+    
+            return Prediction
+        else
+            return HitPosition
+        end
+    end
 
     function Script:UpdateBox()
         if Script.Locals.SilentAimTarget and Script.Locals.SilentAimTarget.Character then
@@ -2392,11 +2527,10 @@ end)
 end
 
 -- ==================== HITBOX EXPANDER SYSTEM ====================
-
 local HitboxEnabled = getgenv().saved.Osiris['Hitbox Expander']['Enabled']
 local HitboxVisible = getgenv().saved.Osiris['Hitbox Expander']['Visible']
 local HitboxSize = getgenv().saved.Osiris['Hitbox Expander']['Size']
-local HITBOX_REFRESH_TIME = 0.001
+-- local HITBOX_REFRESH_TIME = 0.001
 
 -- Store hitbox visual objects
 local HitboxVisuals = {}
@@ -2483,12 +2617,13 @@ local function UpdateHitbox(Player)
     if not RootPart then return end
     
     local size = GetHitboxSize()
-    
-    -- Expand hitbox
-    pcall(function()
+
+    if RootPart then
         RootPart.CanCollide = false
         RootPart.Size = size
-    end)
+    else
+        return
+    end
     
     -- Update visual if visible
     if HitboxVisible then
@@ -2498,9 +2633,10 @@ local function UpdateHitbox(Player)
                 Visual = CreateHitboxVisual(Player)
             end
             if Visual then
-                -- Update size and position
                 Visual.Size = size
                 Visual.CFrame = RootPart.CFrame
+            else
+                return
             end
         end)
     else
@@ -2508,20 +2644,17 @@ local function UpdateHitbox(Player)
     end
 end
 
--- Main loop
 task.spawn(function()
-    while HitboxEnabled do
+    if HitboxEnabled then
         for _, Player in ipairs(Players:GetPlayers()) do
             if Player ~= Self then
                 UpdateHitbox(Player)
             end
         end
-        task.wait(HITBOX_REFRESH_TIME)
-    end
-    
-    -- Clean up when disabled
-    for Player in pairs(HitboxVisuals) do
-        RemoveHitboxVisual(Player)
+    else
+        for Player in pairs(HitboxVisuals) do
+            RemoveHitboxVisual(Player)
+        end
     end
 end)
 
