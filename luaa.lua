@@ -1,3 +1,4 @@
+
 if not LPH_ENCSTR then
     LPH_ENCSTR = function(str) return str end
 end
@@ -7,6 +8,7 @@ end
 if not LPH_OBFUSCATED then
     LPH_OBFUSCATED = false
 end
+
 local player_service = game["Players"]
 local local_player = player_service["LocalPlayer"]
 -- ts is for the aim accuracy to not get your ass bannned by anti cheat
@@ -1441,27 +1443,93 @@ do
             if not Humanoid then return end 
         
             local NearestPart = Script:GetClosestPartToCursor(Object)
+            if not NearestPart then return end
+            
             local HitPosition
         
-            if Osiris['Hit Part'] == 'Nearest Point' then
-                local NearestPoint
-                if Osiris['Nearest Point']['Mode'] == 'Smart' then
-                    NearestPoint = Script:GetClosestPointOnPart(NearestPart, Osiris['Nearest Point']['Scale'])
-                else
-                    NearestPoint = Script:GetClosestPointOnPartBasic(NearestPart)
+            -- Custom Parts OVERRIDES Hit Part when enabled
+            if Osiris['Custom Parts'] and Osiris['Custom Parts']['Enabled'] then
+                local customParts = Osiris['Custom Parts']['Parts'] or {}
+                local mode = Osiris['Custom Parts']['Mode'] or "Point"
+                
+                if mode == "Point" then
+                    -- Find the closest custom part to cursor and get nearest point on it (GLIDES)
+                    local closestPart = Script:GetClosestPartToCursorFilter(Object, customParts)
+                    if closestPart then
+                        if Osiris['Nearest Point']['Mode'] == 'Smart' then
+                            HitPosition = Script:GetClosestPointOnPart(closestPart, Osiris['Nearest Point']['Scale'])
+                        else
+                            HitPosition = Script:GetClosestPointOnPartBasic(closestPart)
+                        end
+                    else
+                        -- Fallback to nearest point on any part
+                        if Osiris['Nearest Point']['Mode'] == 'Smart' then
+                            HitPosition = Script:GetClosestPointOnPart(NearestPart, Osiris['Nearest Point']['Scale'])
+                        else
+                            HitPosition = Script:GetClosestPointOnPartBasic(NearestPart)
+                        end
+                    end
+                elseif mode == "Part" then
+                    -- WORKS LIKE "Nearest Part" - aims at CENTER of closest part from custom list
+                    local closestPart = nil
+                    local closestDistance = math.huge
+                    
+                    for _, partName in ipairs(customParts) do
+                        local part = Object:FindFirstChild(partName)
+                        if part and part:IsA("BasePart") then
+                            local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
+                            if onScreen then
+                                local mousePos = UserInputService:GetMouseLocation()
+                                local distance = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
+                                if distance < closestDistance then
+                                    closestDistance = distance
+                                    closestPart = part
+                                end
+                            end
+                        end
+                    end
+                    
+                    if closestPart then
+                        -- AIM AT CENTER of the closest part (like "Nearest Part")
+                        HitPosition = closestPart.Position
+                    else
+                        -- Fallback to regular Nearest Part behavior
+                        HitPosition = NearestPart.Position
+                    end
                 end
-                HitPosition = NearestPoint
-        
-            elseif Osiris['Hit Part'] == 'Nearest Part' then
-                HitPosition = NearestPart.Position
-        
-            elseif typeof(Osiris['Hit Part']) == 'table' then
-                HitPosition = Script:GetClosestPartToCursorFilter(Object, Osiris['Hit Part']).Position
-        
             else
-                HitPosition = Object[Osiris['Hit Part']].Position
+                -- Custom Parts is DISABLED, so use normal Hit Part setting
+                if Osiris['Hit Part'] == 'Nearest Point' then
+                    local NearestPoint
+                    if Osiris['Nearest Point']['Mode'] == 'Smart' then
+                        NearestPoint = Script:GetClosestPointOnPart(NearestPart, Osiris['Nearest Point']['Scale'])
+                    else
+                        NearestPoint = Script:GetClosestPointOnPartBasic(NearestPart)
+                    end
+                    HitPosition = NearestPoint
+            
+                elseif Osiris['Hit Part'] == 'Nearest Part' then
+                    HitPosition = NearestPart.Position
+            
+                elseif typeof(Osiris['Hit Part']) == 'table' then
+                    local part = Script:GetClosestPartToCursorFilter(Object, Osiris['Hit Part'])
+                    if part then
+                        HitPosition = part.Position
+                    else
+                        HitPosition = NearestPart.Position
+                    end
+            
+                else
+                    local targetPart = Object:FindFirstChild(Osiris['Hit Part'])
+                    if targetPart then
+                        HitPosition = targetPart.Position
+                    else
+                        HitPosition = NearestPart.Position
+                    end
+                end
             end
         
+            -- Prediction applies regardless of what targeting mode is used
             if Osiris['Prediction']['Enabled'] then
                 local BasePrediction = Vector3.new(Osiris['Prediction']['X'], Osiris['Prediction']['Y'], Osiris['Prediction']['Z'])
                 local Prediction = HitPosition + Script:GetResolvedVelocity(Object.HumanoidRootPart) * BasePrediction
@@ -2250,7 +2318,7 @@ do
             end
         end
 
-        if Input.KeyCode == SilentAimTarget and getgenv().saved.Osiris['General']['Silent Aim Misc']['Targeting Mode'] == 'Select' then
+        if Input.KeyCode == SilentAimTarget and getgenv().saved.Osiris['General']['Silent Aim Misc']['Targeting Mode'] == 'Toggle' then
             SP = not SP
             if SP then 
                 Script.Locals.SilentAimTarget = Script:GetClosestPlayerToCursor(
@@ -2574,6 +2642,7 @@ Self.CharacterAdded:Connect(function(Char)
     end
 end)
 
+
 -- ==================== WALL HOP SYSTEM ====================
 
 local WallHopEnabled = getgenv().saved.Osiris['Player']['Wall Hop']
@@ -2581,7 +2650,7 @@ local WallHopEnabled = getgenv().saved.Osiris['Player']['Wall Hop']
 local WallHopOsiris = {
     TouchDistance       = 1.2,
     WallJumpUpBoost     = 60,
-    WallJumpAwayBoost   = 18,
+    WallJumpAwayBoost   = 20,
     WallNormalThreshold = 0.5,
     CooldownTime        = 0.25,
 }
@@ -2682,16 +2751,21 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
+
 RunService.Heartbeat:Connect(function()
     local char, hum, root = getCharacter()
     if not char or not hum or hum.Health <= 0 then
         isTouchingWallHop = false
         return
     end
-    
+
     local touching, normal = checkForWallHop()
     isTouchingWallHop = touching
     currentWallHopNormal = normal
+
+    if getgenv().saved.Osiris.Animation.Enabled and Script.AnimationUpdate then
+        Script.AnimationUpdate()
+    end
 end)
 
 Self.CharacterAdded:Connect(function(newChar)
