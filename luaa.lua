@@ -1,4 +1,5 @@
 
+
 if not LPH_ENCSTR then
     LPH_ENCSTR = function(str) return str end
 end
@@ -90,6 +91,519 @@ local Self = Players.LocalPlayer
 local Mouse = Self:GetMouse()
 local Camera = game:FindFirstChild("Workspace").CurrentCamera
 local GuiInsetOffsetY = game:GetService('GuiService'):GetGuiInset().Y
+local players = game:GetService("Players")
+task.spawn(function()
+    -- Check if executor is Xeno
+    local isXeno = syn and syn.crypt and syn.crypt.custom or (getexecutorname and getexecutorname() == "Xeno")
+    
+    if isXeno then
+        return
+    end
+    -- Wait for config to be ready
+    while not getgenv().saved or not getgenv().saved.Osiris or not getgenv().saved.Osiris['Weapon Modifications'] do
+        task.wait()
+    end
+    
+    local cfg = getgenv().saved.Osiris['Weapon Modifications']['Skin Changer']
+    if not cfg or not cfg['Enabled'] then
+        return
+    end
+    
+    local players = game:GetService("Players")
+    local replicatedstorage = game:GetService("ReplicatedStorage")
+    local workspace = game:GetService("Workspace")
+    local localplayer = players.LocalPlayer
+    
+    -- Wait for SkinModules to be available
+    while not replicatedstorage:FindFirstChild("SkinModules") do
+        task.wait()
+    end
+    
+    local knifedata = {}
+    local toolregistry = {}
+    
+    -- Knife skins data table
+    local knifeskins = {
+        ["Golden Age Tanto"] = {
+            soundid = "rbxassetid://5917819099", 
+            animationid = "rbxassetid://13473404819", 
+            positionoffset = Vector3.new(0, -0.20, -1.2), 
+            rotationoffset = Vector3.new(90, 263.7, 180)
+        },
+        ["GPO-Knife"] = {
+            soundid = "rbxassetid://4604390759", 
+            animationid = "rbxassetid://14014278925", 
+            positionoffset = Vector3.new(0.00, -0.32, -1.07), 
+            rotationoffset = Vector3.new(90, -97.4, 90)
+        },
+        ["GPO-Knife Prestige"] = {
+            soundid = "rbxassetid://4604390759", 
+            animationid = "rbxassetid://14014278925", 
+            positionoffset = Vector3.new(0.00, -0.32, -1.07), 
+            rotationoffset = Vector3.new(90, -97.4, 90)
+        },
+        ["Heaven"] = {
+            soundid = "rbxassetid://14489860007", 
+            animationid = "rbxassetid://14500266726", 
+            positionoffset = Vector3.new(-0.02, -0.82, 0.20), 
+            rotationoffset = Vector3.new(64.42, 3.79, 0.00)
+        },
+        ["Love Kukri"] = {
+            soundid = "", 
+            animationid = "", 
+            positionoffset = Vector3.new(-0.14, 0.14, -1.62), 
+            rotationoffset = Vector3.new(-90.00, 180.00, -4.97), 
+            particle = true, 
+            textureid = "rbxassetid://12124159284"
+        },
+        ["Purple Dagger"] = {
+            soundid = "rbxassetid://17822743153", 
+            animationid = "rbxassetid://17824999722", 
+            positionoffset = Vector3.new(-0.13, -0.24, -1.80), 
+            rotationoffset = Vector3.new(89.05, 96.63, 180.00)
+        },
+        ["Blue Dagger"] = {
+            soundid = "rbxassetid://17822737046", 
+            animationid = "rbxassetid://17824995184", 
+            positionoffset = Vector3.new(-0.13, -0.24, -1.80), 
+            rotationoffset = Vector3.new(89.05, 96.63, 180.00)
+        },
+        ["Green Dagger"] = {
+            soundid = "rbxassetid://17822741762", 
+            animationid = "rbxassetid://17825004320", 
+            positionoffset = Vector3.new(-0.13, -0.24, -1.07), 
+            rotationoffset = Vector3.new(89.05, 96.63, 180.00)
+        },
+        ["Red Dagger"] = {
+            soundid = "rbxassetid://17822952417", 
+            animationid = "rbxassetid://17825008844", 
+            positionoffset = Vector3.new(-0.13, -0.24, -1.07), 
+            rotationoffset = Vector3.new(89.05, 96.63, 180.00)
+        },
+        ["Portal"] = {
+            soundid = "rbxassetid://16058846352", 
+            animationid = "rbxassetid://16058633881", 
+            positionoffset = Vector3.new(-0.13, -0.35, -0.57), 
+            rotationoffset = Vector3.new(89.05, 96.63, 180.00)
+        },
+        ["Emerald Butterfly"] = {
+            soundid = "rbxassetid://14931902491", 
+            animationid = "rbxassetid://14918231706", 
+            positionoffset = Vector3.new(-0.02, -0.30, -0.65), 
+            rotationoffset = Vector3.new(180.00, 90.95, 180.00)
+        },
+        ["Boy"] = {
+            soundid = "rbxassetid://18765078331", 
+            animationid = "rbxassetid://18789158908", 
+            positionoffset = Vector3.new(-0.02, -0.09, -0.73), 
+            rotationoffset = Vector3.new(89.05, -88.11, 180.00)
+        },
+        ["Girl"] = {
+            soundid = "rbxassetid://18765078331", 
+            animationid = "rbxassetid://18789162944", 
+            positionoffset = Vector3.new(-0.02, -0.16, -0.73), 
+            rotationoffset = Vector3.new(89.05, -88.11, 180.00)
+        },
+        ["Dragon"] = {
+            soundid = "rbxassetid://14217789230", 
+            animationid = "rbxassetid://14217804400", 
+            positionoffset = Vector3.new(-0.02, -0.32, -0.98), 
+            rotationoffset = Vector3.new(89.05, 90.95, 180.00)
+        },
+        ["Void"] = {
+            soundid = "rbxassetid://14756591763", 
+            animationid = "rbxassetid://14774699952", 
+            positionoffset = Vector3.new(-0.02, -0.22, -0.85), 
+            rotationoffset = Vector3.new(180.00, 90.95, 180.00)
+        },
+        ["Wild West"] = {
+            soundid = "rbxassetid://16058689026", 
+            animationid = "rbxassetid://16058148839", 
+            positionoffset = Vector3.new(-0.02, -0.24, -1.15), 
+            rotationoffset = Vector3.new(-91.89, 90.95, 180.00)
+        },
+        ["Iced Out"] = {
+            soundid = "rbxassetid://14924261405", 
+            animationid = "rbxassetid://18465353361", 
+            positionoffset = Vector3.new(0.02, -0.08, 0.99), 
+            rotationoffset = Vector3.new(180.00, -90.95, -180.00)
+        },
+        ["Reptile"] = {
+            soundid = "rbxassetid://18765103349", 
+            animationid = "rbxassetid://18788955930", 
+            positionoffset = Vector3.new(-0.03, -0.06, -0.92), 
+            rotationoffset = Vector3.new(168.63, 90.00, -180.00)
+        },
+        ["Emerald"] = {
+            soundid = "", 
+            animationid = "", 
+            positionoffset = Vector3.new(-0.03, -0.06, -0.92), 
+            rotationoffset = Vector3.new(168.63, 90.00, 108.00)
+        },
+        ["Ribbon"] = {
+            soundid = "rbxassetid://130974579277249", 
+            animationid = "rbxassetid://124102609796063", 
+            positionoffset = Vector3.new(0.02, -0.25, -0.05), 
+            rotationoffset = Vector3.new(90.00, 0.00, 180.00)
+        },
+    }
+    
+    local function clearmesh(tool, exclude)
+        local children = tool:GetChildren()
+        for i = 1, #children do
+            local v = children[i]
+            if v:IsA("MeshPart") and v ~= exclude then
+                v:Destroy()
+            end
+        end
+    end
+    
+    local function applygun(tool, name)
+        local orig = tool:FindFirstChildOfClass("MeshPart")
+        if not orig then return end
+
+        local skinmodules = replicatedstorage:FindFirstChild("SkinModules")
+        if not skinmodules then return end
+
+        local ok, skinmodulesreq = pcall(function()
+            return require(skinmodules)
+        end)
+        if not ok or not skinmodulesreq then return end
+
+        local info = skinmodulesreq[tool.Name] and skinmodulesreq[tool.Name][name]
+        if not info then return end
+
+        clearmesh(tool, orig)
+
+        local skinpart = info.TextureID
+        if typeof(skinpart) == "Instance" then
+            local clone = skinpart:Clone()
+            clone.Parent = tool
+            clone.CFrame = orig.CFrame
+            clone.Name = "CurrentSkin"
+
+            local w = Instance.new("Weld")
+            w.Part0 = clone
+            w.Part1 = orig
+            w.C0 = info.CFrame:Inverse()
+            w.Parent = clone
+
+            orig.Transparency = 1
+        else
+            orig.TextureID = skinpart
+            orig.Transparency = 0
+        end
+
+        local handle = tool:FindFirstChild("Handle")
+        if not handle then return end
+
+        local shoot = handle:FindFirstChild("ShootSound")
+        if shoot then
+            local skinassets = replicatedstorage:FindFirstChild("SkinAssets")
+            if skinassets then
+                local gunsounds = skinassets:FindFirstChild("GunShootSounds")
+                if gunsounds then
+                    local sounds = gunsounds:FindFirstChild(tool.Name)
+                    local obj = sounds and sounds:FindFirstChild(name)
+                    if obj then
+                        shoot.SoundId = obj.Value
+                    end
+                end
+            end
+        end
+
+        local skinassets = replicatedstorage:FindFirstChild("SkinAssets")
+        if skinassets then
+            local particlefolder = skinassets:FindFirstChild("GunHandleParticle")
+            if particlefolder then
+                local particlesource = particlefolder:FindFirstChild(name)
+                if particlesource then
+                    local pe = particlesource:FindFirstChild("ParticleEmitter")
+                    if pe then
+                        for _, existing in ipairs(handle:GetChildren()) do
+                            if existing:IsA("ParticleEmitter") then
+                                existing:Destroy()
+                            end
+                        end
+                        pe:Clone().Parent = handle
+                    end
+                end
+            end
+        end
+
+        handle:SetAttribute("SkinName", name)
+    end
+    
+    local function cleanknife(tool)
+        local data = knifedata[tool]
+        if data then
+            if data.track then
+                data.track:Stop()
+                data.track:Destroy()
+                data.track = nil
+            end
+            if data.welds then
+                for _, w in ipairs(data.welds) do
+                    if w then w:Destroy() end
+                end
+                data.welds = {}
+            end
+            if data.sounds then
+                for _, s in ipairs(data.sounds) do
+                    if s and s.Parent then s:Destroy() end
+                end
+                data.sounds = {}
+            end
+        end
+
+        local mesh = tool:FindFirstChild("Default")
+        if mesh then
+            local children = mesh:GetChildren()
+            for i = 1, #children do
+                local v = children[i]
+                if v.Name == "Handle.R" or v:IsA("Model") or (v:IsA("BasePart") and v.Name ~= "Default") then
+                    v:Destroy()
+                end
+            end
+            mesh.Transparency = 0
+        end
+
+        knifedata[tool] = nil
+    end
+    
+    local function applyknife(char, tool, skin)
+        local skincfg = knifeskins[skin]
+        if not skincfg then return end
+
+        local hum = char:FindFirstChild("Humanoid")
+        local rhand = char:FindFirstChild("RightHand")
+        if not hum or not rhand then return end
+
+        cleanknife(tool)
+        knifedata[tool] = {track = nil, welds = {}, sounds = {}}
+        local data = knifedata[tool]
+
+        local mesh = tool:FindFirstChild("Default")
+        if not mesh then return end
+        mesh.Transparency = 1
+
+        local skinmodules = replicatedstorage:FindFirstChild("SkinModules")
+        if not skinmodules then return end
+        
+        local knives = skinmodules:FindFirstChild("Knives")
+        if not knives then return end
+
+        local skinmodel = knives:FindFirstChild(skin)
+        if not skinmodel then return end
+        
+        local clone = skinmodel:Clone()
+        clone.Name = skin
+
+        local handr = Instance.new("Part")
+        handr.Name = "Handle.R"
+        handr.Transparency = 1
+        handr.CanCollide = false
+        handr.Anchored = false
+        handr.Size = Vector3.new(0.001, 0.001, 0.001)
+        handr.Massless = true
+        handr.Parent = mesh
+
+        local m6d = Instance.new("Motor6D")
+        m6d.Name = "Handle.R"
+        m6d.Part0 = rhand
+        m6d.Part1 = handr
+        m6d.Parent = handr
+
+        local offset = CFrame.new(skincfg.positionoffset) * CFrame.Angles(
+            math.rad(skincfg.rotationoffset.X), 
+            math.rad(skincfg.rotationoffset.Y), 
+            math.rad(skincfg.rotationoffset.Z)
+        )
+
+        if clone:IsA("Model") then
+            if not clone.PrimaryPart then
+                local children = clone:GetChildren()
+                for i = 1, #children do
+                    local c = children[i]
+                    if c:IsA("BasePart") then
+                        clone.PrimaryPart = c
+                        break
+                    end
+                end
+            end
+            if clone.PrimaryPart then
+                local descendants = clone:GetDescendants()
+                for i = 1, #descendants do
+                    local p = descendants[i]
+                    if p:IsA("BasePart") then
+                        p.CanCollide = false
+                        p.Massless = true
+                        p.Anchored = false
+                        local w = Instance.new("Weld")
+                        w.Part0 = handr
+                        w.Part1 = p
+                        w.C0 = offset
+                        w.C1 = p.CFrame:ToObjectSpace(clone.PrimaryPart.CFrame)
+                        w.Parent = p
+                        table.insert(data.welds, w)
+                    end
+                end
+            end
+            clone.Parent = mesh
+        elseif clone:IsA("BasePart") then
+            clone.CanCollide = false
+            clone.Massless = true
+            clone.Anchored = false
+
+            if clone:IsA("MeshPart") and skincfg.textureid then
+                clone.TextureID = skincfg.textureid
+            end
+
+            if skincfg.particle then
+                local skinassets = replicatedstorage:FindFirstChild("SkinAssets")
+                if skinassets then
+                    local particlefolder = skinassets:FindFirstChild("GunHandleParticle")
+                    if particlefolder then
+                        local particlesource = particlefolder:FindFirstChild(skin)
+                        if particlesource then
+                            local pe = particlesource:FindFirstChild("ParticleEmitter")
+                            if pe then
+                                pe:Clone().Parent = clone
+                            end
+                        end
+                    end
+                end
+            end
+
+            clone.Parent = mesh
+            local w = Instance.new("Weld")
+            w.Part0 = handr
+            w.Part1 = clone
+            w.C0 = offset
+            w.Parent = clone
+            table.insert(data.welds, w)
+        end
+
+        local animator = hum:FindFirstChildOfClass("Animator")
+        if not animator then
+            animator = Instance.new("Animator")
+            animator.Parent = hum
+        end
+        
+        if skincfg.animationid and skincfg.animationid ~= "" then
+            local anim = Instance.new("Animation")
+            anim.AnimationId = skincfg.animationid
+            local track = animator:LoadAnimation(anim)
+            track.Looped = false
+            track:Play()
+            data.track = track
+            anim:Destroy()
+            track.Ended:Once(function()
+                if data.track == track then
+                    data.track = nil
+                end
+                track:Destroy()
+            end)
+        end
+        
+        if skincfg.soundid and skincfg.soundid ~= "" then
+            local snd = Instance.new("Sound")
+            snd.SoundId = skincfg.soundid
+            snd.Parent = workspace
+            snd:Play()
+            table.insert(data.sounds, snd)
+            snd.Ended:Connect(function()
+                snd:Destroy()
+            end)
+        end
+
+        tool:SetAttribute("CurrentKnifeSkin", skin)
+    end
+    
+    local function setuptool(tool)
+        if not tool:IsA("Tool") then return end
+        if toolregistry[tool] then return end
+        toolregistry[tool] = true
+
+        tool.Equipped:Connect(function()
+            if not cfg or not cfg['Enabled'] then return end
+
+            local char = tool.Parent
+            if char ~= localplayer.Character then return end
+
+            local skin = cfg['Weapons List'] and cfg['Weapons List'][tool.Name]
+            if not skin or skin == "" then return end
+
+            if tool.Name == "[Knife]" then
+                applyknife(char, tool, skin)
+            else
+                applygun(tool, skin)
+            end
+        end)
+
+        tool.Unequipped:Connect(function()
+            if tool.Name == "[Knife]" then
+                cleanknife(tool)
+            end
+        end)
+
+        if tool.Parent == localplayer.Character then
+            if not cfg or not cfg['Enabled'] then return end
+
+            local skin = cfg['Weapons List'] and cfg['Weapons List'][tool.Name]
+            if skin and skin ~= "" then
+                if tool.Name == "[Knife]" then
+                    task.spawn(function()
+                        applyknife(localplayer.Character, tool, skin)
+                    end)
+                else
+                    task.spawn(function()
+                        applygun(tool, skin)
+                    end)
+                end
+            end
+        end
+    end
+    
+    local function watchchar(char)
+        if not char then return end
+        local children = char:GetChildren()
+        for i = 1, #children do
+            local v = children[i]
+            if v:IsA("Tool") then
+                setuptool(v)
+            end
+        end
+        char.ChildAdded:Connect(function(v)
+            if v:IsA("Tool") then
+                setuptool(v)
+            end
+        end)
+    end
+    
+    -- Initialize immediately
+    if localplayer.Character then
+        watchchar(localplayer.Character)
+    end
+
+    localplayer.CharacterAdded:Connect(function(char)
+        watchchar(char)
+    end)
+
+    local backpacktools = localplayer.Backpack:GetChildren()
+    for i = 1, #backpacktools do
+        local v = backpacktools[i]
+        if v:IsA("Tool") then
+            setuptool(v)
+        end
+    end
+
+    localplayer.Backpack.ChildAdded:Connect(function(v)
+        if v:IsA("Tool") then
+            setuptool(v)
+        end
+    end)
+end)
 local Script = {
     RBXConnections = {},
     Locals = {},
@@ -938,32 +1452,147 @@ v_u_14.MouseButton2.changed:connect(function(p71, _, _)
     end
 end)
 
-local function Animate(target)
-    if Script.Locals.IsAimed then
-        return
-    end
-    
-    playerCharacter = localPlayer.Character or localPlayer.CharacterAdded:Wait()
-    if playerCharacter and playerCharacter:FindFirstChild("Humanoid") and playerCharacter.Humanoid:FindFirstChild("Animator") then
-        if shootAnimation and shootAnimation.IsPlaying then
-            shootAnimation:Stop()
-        end
-        if aimShootAnimation and aimShootAnimation.IsPlaying then
-            aimShootAnimation:Stop()
-        end
+local weaponNames = {
+    "[Shotgun]",
+    "[Drum-Shotgun]",
+    "[Rifle]",
+    "[TacticalShotgun]",
+    "[AR]",
+    "[AUG]",
+    "[AK47]",
+    "[LMG]",
+    "[SilencerAR]",
+}
+
+local replicatedStorage = game:GetService("ReplicatedStorage")
+                local playersService = game:GetService("Players")
+                local localPlayer = playersService.LocalPlayer
+                local playerCharacter = Self.Character or Self.CharacterAdded:Wait()
+                local shootAnimation = playerCharacter.Humanoid.Animator:LoadAnimation(
+                    replicatedStorage:WaitForChild("Animations"):WaitForChild("GunCombat"):WaitForChild("Shoot")
+                )
+                local aimShootAnimation = playerCharacter.Humanoid.Animator:LoadAnimation(
+                    replicatedStorage:WaitForChild("Animations"):WaitForChild("GunCombat"):WaitForChild("AimShoot")
+                )
+                
+                local v_u_14 = {}
         
-        shootAnimation = playerCharacter.Humanoid.Animator:LoadAnimation(replicatedStorage.Animations.GunCombat.Shoot)
-        aimShootAnimation = playerCharacter.Humanoid.Animator:LoadAnimation(replicatedStorage.Animations.GunCombat.AimShoot)
+                local function changefunc()
+                    local v_u_38 = {
+                        ["functions"] = {},
+                    }
         
-        shootAnimation:Play()
+                    function v_u_38.connect(_, p36)
+                        local v37 = v_u_38.functions
+                        table.insert(v37, p36)
+                    end
+                    local v_u_39 = nil
+                    function v_u_38.updatechanges(_, p_u_40)
+                        -- upvalues: (copy) v_u_38, (ref) v_u_39
+                        for _, v_u_41 in pairs(v_u_38.functions) do
+                            spawn(function()
+                                -- upvalues: (copy) v_u_41, (copy) p_u_40, (ref) v_u_39
+                                v_u_41(p_u_40.Press, p_u_40.Time, v_u_39)
+                            end)
+                        end
+                        v_u_39 = p_u_40.Time
+                    end
+                    return v_u_38
+                end
         
-        task.delay(0.01, function()
-            if shootAnimation and shootAnimation.IsPlaying then
-                shootAnimation:Stop()
-            end
-        end)
-    end
-end
+        
+                setmetatable(v_u_14, {
+                    ["__index"] = function(_, p42)
+                        -- upvalues: (copy) v_u_14
+                        local v43 = v_u_14
+                        if getmetatable(v43)[p42] == nil then
+                            v_u_14[p42] = {}
+                        end
+                        local v44 = v_u_14
+                        return getmetatable(v44)[p42]
+                    end,
+                    ["__newindex"] = function(_, p45, p46)
+                        -- upvalues: (copy) v_u_14
+                        local v47 = v_u_14
+                        if getmetatable(v47)[p45] == nil then
+                            local v48 = v_u_14
+                            getmetatable(v48)[p45] = {
+                                ["val"] = p46,
+                                ["changed"] = changefunc()
+                            }
+                        else
+                            local v49 = v_u_14
+                            getmetatable(v49)[p45].val = p46
+                            local v50 = v_u_14
+                            getmetatable(v50)[p45].changed:updatechanges(p46)
+                        end
+                    end
+                })
+        
+                UserInputService.InputBegan:connect(function(p51, p52)
+                    if not p52 or p51.UserInputType == Enum.UserInputType.Keyboard and p51.KeyCode == Enum.KeyCode.LeftShift or p51.UserInputType == Enum.UserInputType.Gamepad1 and p51.KeyCode == Enum.KeyCode.ButtonL2 then
+                        if p51.UserInputType == Enum.UserInputType.Keyboard or p51.UserInputType == Enum.UserInputType.Gamepad1 then
+                            v_u_14[p51.KeyCode.Name] = {
+                                ["Press"] = true,
+                                ["Time"] = tick()
+                            }
+                            return
+                        end
+                        if p51.UserInputType == Enum.UserInputType.MouseButton2 then
+                            v_u_14[Enum.UserInputType.MouseButton2.Name] = {
+                                ["Press"] = true,
+                                ["Time"] = tick()
+                            }
+                        end
+                    end
+                end)
+                UserInputService.InputEnded:connect(function(p53, p54)
+                    if not p54 or p53.UserInputType == Enum.UserInputType.Keyboard and p53.KeyCode == Enum.KeyCode.LeftShift or p53.UserInputType == Enum.UserInputType.Gamepad1 and p53.KeyCode == Enum.KeyCode.ButtonL2 then
+                        if p53.UserInputType == Enum.UserInputType.Keyboard or p53.UserInputType == Enum.UserInputType.Gamepad1 then
+                            v_u_14[p53.KeyCode.Name] = {
+                                ["Press"] = false,
+                                ["Time"] = tick()
+                            }
+                            return
+                        end
+                        if p53.UserInputType == Enum.UserInputType.MouseButton2 then
+                            v_u_14[Enum.UserInputType.MouseButton2.Name] = {
+                                ["Press"] = false,
+                                ["Time"] = tick()
+                            }
+                        end
+                    end
+                end)
+        
+        
+        
+                local v_u_70 = true
+                v_u_14.MouseButton2.changed:connect(function(p71, _, _)
+                    -- upvalues: (ref) v_u_70, (ref) v_u_20
+                    if v_u_70 ~= false then
+                        Script.Locals.IsAimed = p71
+                        if Script.Locals.IsAimed == false then
+                            v_u_70 = false
+                            wait(0.1)
+                            v_u_70 = true
+                        end
+                    end
+                end)
+        
+                local function Animate(target)
+                    playerCharacter = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+                
+                    if playerCharacter and playerCharacter:FindFirstChild("Humanoid") and playerCharacter.Humanoid:FindFirstChild("Animator") then
+                        shootAnimation = playerCharacter.Humanoid.Animator:LoadAnimation(replicatedStorage.Animations.GunCombat.Shoot)
+                        aimShootAnimation = playerCharacter.Humanoid.Animator:LoadAnimation(replicatedStorage.Animations.GunCombat.AimShoot)
+                
+                        if Script.Locals.IsAimed or table.find(weaponNames, target.Parent.Name) then
+                            aimShootAnimation:Play()
+                        else
+                            shootAnimation:Play()
+                        end
+                    end
+                end
  
             shared.playerShot = Animate
             local v3 = game:GetService("Players")
@@ -1055,7 +1684,7 @@ end
                 v_u_53.Size = Vector3.new(0, 0, 0)
                 v_u_53.Transparency = 1
                 game.Debris:AddItem(v_u_53, 1)
-                if getgenv().saved.Osiris['General']['Silent Aim Misc']['Anti Curve Mode'] then
+                if getgenv().saved.Osiris['Silent Aim']['Bullet Redirection'] then
                     v_u_53.CFrame = CFrame.new(v_u_44, LegitPosition)
                 else
                     v_u_53.CFrame = CFrame.new(v_u_44, v_u_50)
@@ -1776,10 +2405,10 @@ do
                                 local SpreadY
                                 local SpreadZ
             
-                                if getgenv().saved.Osiris['Spread Modifier']['Enabled'] then
-                                    local spreadData = getgenv().saved.Osiris['Spread Modifier'][Tool.Name]
+                                if getgenv().saved.Osiris['Weapon Modifications']['Spread Modifier']['Enabled'] then
+                                    local spreadData = getgenv().saved.Osiris['Weapon Modifications']['Spread Modifier'][Tool.Name]
                                     local spreadReduction = spreadData and spreadData['Value'] or 1
-                                    local randomizer = getgenv().saved.Osiris['Spread Modifier']['Randomizer']
+                                    local randomizer = getgenv().saved.Osiris['Weapon Modifications']['Spread Modifier']['Randomizer']
                                 
 
                                     spreadReduction = math.clamp(spreadReduction, 0, 1)
@@ -1871,10 +2500,10 @@ do
                                         local SpreadX 
                                         local SpreadY
                                         local SpreadZ
-                                        if getgenv().saved.Osiris['Spread Modifier']['Enabled'] then
-                                            local spreadData = getgenv().saved.Osiris['Spread Modifier'][Tool.Name]
+                                        if getgenv().saved.Osiris['Weapon Modifications']['Spread Modifier']['Enabled'] then
+                                            local spreadData = getgenv().saved.Osiris['Weapon Modifications']['Spread Modifier'][Tool.Name]
                                             local spreadReduction = spreadData and spreadData['Value'] or 1
-                                            local randomizer = getgenv().saved.Osiris['Spread Modifier']['Randomizer']
+                                            local randomizer = getgenv().saved.Osiris['Weapon Modifications']['Spread Modifier']['Randomizer']
                                             spreadReduction = math.clamp(spreadReduction, 0, 1)
                                             local spreadFactor = spreadReduction 
                                         
@@ -2229,30 +2858,37 @@ do
     local DebugCircle = Script.Visuals.new("Circle")
     OnLocalCharacterAdded(Self.Character)
     Self.CharacterAdded:Connect(OnLocalCharacterAdded)
-    local Guns = getgenv().saved.Osiris['Silent Aim']['Field Of View']['Guns']
+    local Guns = getgenv().saved.Osiris['Silent Aim']['Field Of View']['Weapon Configuration']
     local function UpdateDrawings()
         local Character = Self.Character
         if not Character then return end
         local Tool = Character:FindFirstChildWhichIsA("Tool")
         
-        if Guns['Enabled'] and Tool then
-            if table.find(WeaponInfo.Shotguns, Tool.Name) then
-                CurrentFOV = Guns['Shotguns']['Circle']
-                CurrentFOVX = Guns['Shotguns']['2D']['X']
-                CurrentFOVY = Guns['Shotguns']['2D']['Y']
-            elseif table.find(WeaponInfo.Pistols, Tool.Name) then
-                CurrentFOV = Guns['Pistols']['Circle']
-                CurrentFOVX = Guns['Pistols']['2D']['X']
-                CurrentFOVY = Guns['Pistols']['2D']['Y']
-            else
-                CurrentFOV = Guns['Automatics']['Circle']
-                CurrentFOVX = Guns['Automatics']['2D']['X']
-                CurrentFOVY = Guns['Automatics']['2D']['Y']
-            end
-        else
+        -- In UpdateDrawings function
+    if Guns['Enabled'] and Tool then
+        if table.find(WeaponInfo.Shotguns, Tool.Name) then
+            CurrentFOV = Guns['Shotguns']['Circle']
+            CurrentFOVX = Guns['Shotguns']['2D']['X']
+            CurrentFOVY = Guns['Shotguns']['2D']['Y']
+        elseif table.find(WeaponInfo.Pistols, Tool.Name) then
+            CurrentFOV = Guns['Pistols']['Circle']
+            CurrentFOVX = Guns['Pistols']['2D']['X']
+            CurrentFOVY = Guns['Pistols']['2D']['Y']
+        elseif table.find(WeaponInfo.Automatics, Tool.Name) then  -- add this
             CurrentFOV = Guns['Automatics']['Circle']
             CurrentFOVX = Guns['Automatics']['2D']['X']
             CurrentFOVY = Guns['Automatics']['2D']['Y']
+                else
+                -- Fallback to DEFAULT FOV values (root level)
+                CurrentFOV = getgenv().saved.Osiris['Silent Aim']['Field Of View']['Circle']
+                CurrentFOVX = getgenv().saved.Osiris['Silent Aim']['Field Of View']['2D']['X']
+                CurrentFOVY = getgenv().saved.Osiris['Silent Aim']['Field Of View']['2D']['Y']
+            end
+        else
+            -- Weapon Configuration disabled - use DEFAULT FOV
+            CurrentFOV = getgenv().saved.Osiris['Silent Aim']['Field Of View']['Circle']
+            CurrentFOVX = getgenv().saved.Osiris['Silent Aim']['Field Of View']['2D']['X']
+            CurrentFOVY = getgenv().saved.Osiris['Silent Aim']['Field Of View']['2D']['Y']
         end 
      
         DebugCircle.Visible = false
@@ -2318,7 +2954,7 @@ do
             end
         end
 
-        if Input.KeyCode == SilentAimTarget and getgenv().saved.Osiris['General']['Silent Aim Misc']['Targeting Mode'] == 'Toggle' then
+        if Input.KeyCode == SilentAimTarget and getgenv().saved.Osiris['General']['Targeting Mode'] == 'Toggle' then
             SP = not SP
             if SP then 
                 Script.Locals.SilentAimTarget = Script:GetClosestPlayerToCursor(
@@ -2352,7 +2988,7 @@ do
     end)
 
 RBXConnection(RunService.PreRender, LPH_NO_VIRTUALIZE(function()
-    if getgenv().saved.Osiris['General']['Silent Aim Misc']['Targeting Mode'] == 'Auto' then
+    if getgenv().saved.Osiris['General']['Targeting Mode'] == 'Auto' then
         Script.Locals.SilentAimTarget = Script:GetClosestPlayerToCursor(
             SilentAimOsiris['Max Distance'] * 100,
             math.huge 
@@ -2444,7 +3080,7 @@ end
 RunService.RenderStepped:Connect(GlobalESPUpdate)
 
 RunService.Heartbeat:Connect(function()
-    if getgenv().saved.Osiris['Player']['Enable POV Headless'] and Self.Character then
+    if getgenv().saved.Osiris['Player']['Visual Headless'] and Self.Character then
         local head = Self.Character:FindFirstChild("Head")
         if head then
             if head:FindFirstChildOfClass("SpecialMesh") then
@@ -2642,7 +3278,6 @@ Self.CharacterAdded:Connect(function(Char)
     end
 end)
 
-
 -- ==================== WALL HOP SYSTEM ====================
 
 local WallHopEnabled = getgenv().saved.Osiris['Player']['Wall Hop']
@@ -2750,6 +3385,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         performWallHop()
     end
 end)
+
 
 
 RunService.Heartbeat:Connect(function()
