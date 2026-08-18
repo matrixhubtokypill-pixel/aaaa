@@ -3065,15 +3065,16 @@ local localPlayer = Players.LocalPlayer
 -- Reference to your big table
 local CONFIG = getgenv().saved.Osiris.Player.Avatar
 
-local TIME = 1
 local HAIR_MULTIPLIER = 1.2
+
+-- Track already applied characters to avoid duplicate processing
+local appliedCharacters = {}
 
 local function applyCustomAnimations(character)
     if not CONFIG.Enabled then return end
     
-    task.wait(0.5)
-    
-    local humanoid = character:WaitForChild("Humanoid", 5)
+    -- Wait for humanoid to exist
+    local humanoid = character:WaitForChild("Humanoid", 10)
     if not humanoid then return end
     
     local animator = humanoid:FindFirstChild("Animator")
@@ -3082,6 +3083,7 @@ local function applyCustomAnimations(character)
         animator.Parent = humanoid
     end
     
+    -- Load animations into animator
     local function loadAnimation(animId, animName)
         if not animId or animId == "" then return end
         
@@ -3093,7 +3095,8 @@ local function applyCustomAnimations(character)
         end)
         
         if success and track then
-            print("ok")
+            track:Stop()
+            track:Destroy()
             return track
         end
     end
@@ -3104,10 +3107,11 @@ local function applyCustomAnimations(character)
     loadAnimation(CONFIG.Animations.jump, "jump")
     loadAnimation(CONFIG.Animations.fall, "fall")
     
+    -- Update the Animate script if it exists
     local animateScript = character:FindFirstChild("Animate")
     if animateScript then
         local function setAnimId(folder, animName, newId)
-            if not folder then return end
+            if not folder or not newId or newId == "" then return end
             local anim = folder:FindFirstChild(animName)
             if anim and anim:IsA("Animation") then
                 anim.AnimationId = newId
@@ -3142,49 +3146,70 @@ end
 
 local function applyAvatar(character)
     if not CONFIG.Enabled then return end
+    
+    -- Prevent duplicate processing
+    if appliedCharacters[character] then return end
+    appliedCharacters[character] = true
+    
+    -- Clean up when character is destroyed
+    character.AncestryChanged:Connect(function()
+        if not character.Parent then
+            appliedCharacters[character] = nil
+        end
+    end)
 
     local uid = tonumber(CONFIG['User ID'])
-    if not uid then return end
+    if not uid then 
+        print("Invalid User ID")
+        return 
+    end
 
+    -- Wait for character to be fully parented
     if not character.Parent then
         character.AncestryChanged:Wait()
     end
 
-    task.wait(TIME)
+    -- Wait for humanoid with timeout
+    local humanoid = character:WaitForChild("Humanoid", 10)
+    if not humanoid then 
+        print("Humanoid not found")
+        return 
+    end
 
-    local humanoid = character:WaitForChild("Humanoid", 5)
-    if not humanoid then return end
-
+    -- Apply description
     local descSuccess, targetDesc = pcall(function()
         return Players:GetHumanoidDescriptionFromUserId(uid)
     end)
 
-    if not descSuccess or not targetDesc then
-        print("ok")
-        return
+    if descSuccess and targetDesc then
+        pcall(function()
+            humanoid:ApplyDescription(targetDesc)
+        end)
+    else
+        print("Failed to get description")
     end
 
-    pcall(function()
-        humanoid:ApplyDescription(targetDesc)
-    end)
-
+    -- Create model from user ID
     local modelSuccess, targetModel = pcall(function()
         return Players:CreateHumanoidModelFromUserId(uid)
     end)
 
     if modelSuccess and targetModel then
+        -- Clear existing accessories
         for _, v in pairs(character:GetChildren()) do
             if v:IsA("Accessory") or v:IsA("Shirt") or v:IsA("Pants") or v:IsA("ShirtGraphic") or v:IsA("BodyColors") then
                 v:Destroy()
             end
         end
 
+        -- Apply clothing
         for _, v in pairs(targetModel:GetChildren()) do
             if v:IsA("Shirt") or v:IsA("Pants") or v:IsA("ShirtGraphic") or v:IsA("BodyColors") then
                 v:Clone().Parent = character
             end
         end
 
+        -- Apply accessories
         for _, v in pairs(targetModel:GetChildren()) do
             if v:IsA("Accessory") then
                 local acc = v:Clone()
@@ -3234,6 +3259,7 @@ local function applyAvatar(character)
             end
         end
 
+        -- Handle headless
         if CONFIG['Visual Headless'] then
             local myHead = character:FindFirstChild("Head")
             if myHead then
@@ -3241,6 +3267,7 @@ local function applyAvatar(character)
             end
         end
 
+        -- Copy head properties
         local myHead = character:FindFirstChild("Head")
         local tHead = targetModel:FindFirstChild("Head")
         if myHead and tHead then
@@ -3259,6 +3286,7 @@ local function applyAvatar(character)
         targetModel:Destroy()
     end
 
+    -- Set hair scale
     local function setHairScale(value)
         local hs = humanoid:FindFirstChild("HairScale")
         if hs and hs:IsA("NumberValue") then
@@ -3279,28 +3307,44 @@ local function applyAvatar(character)
     local newHairValue = currentHair * HAIR_MULTIPLIER
     setHairScale(newHairValue)
 
+    -- Keep hair scale updated
     task.spawn(function()
         while character and character.Parent do
             task.wait(0.5)
             setHairScale(newHairValue)
         end
     end)
-end
 
-local function onCharacterAdded(character)
-    applyAvatar(character)
+    -- Apply animations after a short delay to ensure everything is loaded
     task.wait(0.5)
     applyCustomAnimations(character)
 end
 
+-- Main respawn handler
+local function onCharacterAdded(character)
+    -- Clean up old character from tracking
+    for oldChar in pairs(appliedCharacters) do
+        if oldChar ~= character and (not oldChar.Parent or oldChar == oldChar) then
+            appliedCharacters[oldChar] = nil
+        end
+    end
+    
+    -- Wait briefly for character to fully load
+    task.wait(0.1)
+    
+    -- Apply avatar
+    applyAvatar(character)
+end
+
+-- Connect to respawns
 localPlayer.CharacterAdded:Connect(onCharacterAdded)
 
+-- Apply to current character if exists
 if localPlayer.Character then
     task.spawn(function()
         onCharacterAdded(localPlayer.Character)
     end)
 end
-
 -- ==================== HITBOX EXPANDER SYSTEM ====================
 
 local HitboxEnabled = getgenv().saved.Osiris['Hitbox Expander']['Enabled']
