@@ -2054,7 +2054,7 @@ do
             
             local HitPosition
         
-            -- Custom Parts OVERRIDES Hit Part when enabled
+            -- Custom Parts OVERRIDES Hit Part when Enabled
             if Osiris['Custom Parts'] and Osiris['Custom Parts']['Enabled'] then
                 local customParts = Osiris['Custom Parts']['Parts'] or {}
                 local mode = Osiris['Custom Parts']['Mode'] or "Point"
@@ -3057,20 +3057,248 @@ end
 
 RunService.RenderStepped:Connect(GlobalESPUpdate)
 
-RunService.Heartbeat:Connect(function()
-    if getgenv().saved.Osiris['Player']['Visual Headless'] and Self.Character then
-        local head = Self.Character:FindFirstChild("Head")
-        if head then
-            if head:FindFirstChildOfClass("SpecialMesh") then
-                head:FindFirstChildOfClass("SpecialMesh"):Destroy()
-            end
-            head.Transparency = 1
-            for _, v in pairs(head:GetChildren()) do
-                if v:IsA("Decal") then v:Destroy() end
-            end
+-- ==================== AVATAR SYSTEM ====================
+
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+
+-- Reference to your big table
+local CONFIG = getgenv().saved.Osiris.Player.Avatar
+
+local TIME = 1
+local HAIR_MULTIPLIER = 1.2
+
+local function applyCustomAnimations(character)
+    if not CONFIG.Enabled then return end
+    
+    task.wait(0.5)
+    
+    local humanoid = character:WaitForChild("Humanoid", 5)
+    if not humanoid then return end
+    
+    local animator = humanoid:FindFirstChild("Animator")
+    if not animator then
+        animator = Instance.new("Animator")
+        animator.Parent = humanoid
+    end
+    
+    local function loadAnimation(animId, animName)
+        if not animId or animId == "" then return end
+        
+        local animObj = Instance.new("Animation")
+        animObj.AnimationId = animId
+        
+        local success, track = pcall(function()
+            return animator:LoadAnimation(animObj)
+        end)
+        
+        if success and track then
+            print("ok")
+            return track
         end
     end
-end)
+    
+    loadAnimation(CONFIG.Animations.idle, "idle")
+    loadAnimation(CONFIG.Animations.walk, "walk")
+    loadAnimation(CONFIG.Animations.run, "run")
+    loadAnimation(CONFIG.Animations.jump, "jump")
+    loadAnimation(CONFIG.Animations.fall, "fall")
+    
+    local animateScript = character:FindFirstChild("Animate")
+    if animateScript then
+        local function setAnimId(folder, animName, newId)
+            if not folder then return end
+            local anim = folder:FindFirstChild(animName)
+            if anim and anim:IsA("Animation") then
+                anim.AnimationId = newId
+            end
+        end
+        
+        local idleFolder = animateScript:FindFirstChild("idle")
+        local walkFolder = animateScript:FindFirstChild("walk")
+        local runFolder = animateScript:FindFirstChild("run")
+        local jumpFolder = animateScript:FindFirstChild("jump")
+        local fallFolder = animateScript:FindFirstChild("fall")
+        
+        if idleFolder then
+            setAnimId(idleFolder, "Animation1", CONFIG.Animations.idle)
+            setAnimId(idleFolder, "Animation2", CONFIG.Animations.idle)
+            setAnimId(idleFolder, "Animation3", CONFIG.Animations.idle)
+        end
+        if walkFolder then
+            setAnimId(walkFolder, "WalkAnim", CONFIG.Animations.walk)
+        end
+        if runFolder then
+            setAnimId(runFolder, "RunAnim", CONFIG.Animations.run)
+        end
+        if jumpFolder then
+            setAnimId(jumpFolder, "JumpAnim", CONFIG.Animations.jump)
+        end
+        if fallFolder then
+            setAnimId(fallFolder, "FallAnim", CONFIG.Animations.fall)
+        end
+    end
+end
+
+local function applyAvatar(character)
+    if not CONFIG.Enabled then return end
+
+    local uid = tonumber(CONFIG['User ID'])
+    if not uid then return end
+
+    if not character.Parent then
+        character.AncestryChanged:Wait()
+    end
+
+    task.wait(TIME)
+
+    local humanoid = character:WaitForChild("Humanoid", 5)
+    if not humanoid then return end
+
+    local descSuccess, targetDesc = pcall(function()
+        return Players:GetHumanoidDescriptionFromUserId(uid)
+    end)
+
+    if not descSuccess or not targetDesc then
+        print("ok")
+        return
+    end
+
+    pcall(function()
+        humanoid:ApplyDescription(targetDesc)
+    end)
+
+    local modelSuccess, targetModel = pcall(function()
+        return Players:CreateHumanoidModelFromUserId(uid)
+    end)
+
+    if modelSuccess and targetModel then
+        for _, v in pairs(character:GetChildren()) do
+            if v:IsA("Accessory") or v:IsA("Shirt") or v:IsA("Pants") or v:IsA("ShirtGraphic") or v:IsA("BodyColors") then
+                v:Destroy()
+            end
+        end
+
+        for _, v in pairs(targetModel:GetChildren()) do
+            if v:IsA("Shirt") or v:IsA("Pants") or v:IsA("ShirtGraphic") or v:IsA("BodyColors") then
+                v:Clone().Parent = character
+            end
+        end
+
+        for _, v in pairs(targetModel:GetChildren()) do
+            if v:IsA("Accessory") then
+                local acc = v:Clone()
+                local handle = acc:FindFirstChild("Handle")
+                if handle then
+                    for _, w in pairs(handle:GetChildren()) do
+                        if w:IsA("Weld") or w:IsA("JointInstance") then
+                            w:Destroy()
+                        end
+                    end
+                end
+                acc.Parent = character
+                if handle then
+                    local myHead = character:FindFirstChild("Head")
+                    local att = handle:FindFirstChildOfClass("Attachment")
+                    if att then
+                        local targetAtt
+                        for _, desc in pairs(character:GetDescendants()) do
+                            if desc:IsA("Attachment") and desc.Name == att.Name then
+                                targetAtt = desc
+                                break
+                            end
+                        end
+                        if targetAtt and targetAtt.Parent then
+                            handle.CFrame = targetAtt.Parent.CFrame * targetAtt.CFrame * att.CFrame:Inverse()
+                            local w = Instance.new("Weld")
+                            w.Name = "AccessoryWeld"
+                            w.Part0 = targetAtt.Parent
+                            w.Part1 = handle
+                            w.C0 = targetAtt.CFrame
+                            w.C1 = att.CFrame
+                            w.Parent = handle
+                        end
+                    else
+                        if myHead then
+                            handle.CFrame = myHead.CFrame * CFrame.new(0, 0.5, 0)
+                            local w = Instance.new("Weld")
+                            w.Name = "AccessoryWeld"
+                            w.Part0 = myHead
+                            w.Part1 = handle
+                            w.C0 = CFrame.new(0, 0.5, 0)
+                            w.C1 = acc.AttachmentPoint
+                            w.Parent = handle
+                        end
+                    end
+                end
+            end
+        end
+
+        if CONFIG['Visual Headless'] then
+            local myHead = character:FindFirstChild("Head")
+            if myHead then
+                myHead.Transparency = 1
+            end
+        end
+
+        local myHead = character:FindFirstChild("Head")
+        local tHead = targetModel:FindFirstChild("Head")
+        if myHead and tHead then
+            if myHead:IsA("MeshPart") and tHead:IsA("MeshPart") then
+                myHead.MeshId = tHead.MeshId
+                myHead.TextureID = tHead.TextureID
+                myHead.Color = tHead.Color
+            end
+            for _, obj in pairs(tHead:GetChildren()) do
+                if obj:IsA("Decal") or obj:IsA("SpecialMesh") or obj:IsA("SurfaceAppearance") or obj.Name == "Mesh" then
+                    obj:Clone().Parent = myHead
+                end
+            end
+        end
+
+        targetModel:Destroy()
+    end
+
+    local function setHairScale(value)
+        local hs = humanoid:FindFirstChild("HairScale")
+        if hs and hs:IsA("NumberValue") then
+            hs.Value = value
+        else
+            hs = Instance.new("NumberValue")
+            hs.Name = "HairScale"
+            hs.Value = value
+            hs.Parent = humanoid
+        end
+    end
+
+    local currentHair = 1.0
+    local hs = humanoid:FindFirstChild("HairScale")
+    if hs and hs:IsA("NumberValue") then
+        currentHair = hs.Value
+    end
+    local newHairValue = currentHair * HAIR_MULTIPLIER
+    setHairScale(newHairValue)
+
+    task.spawn(function()
+        while character and character.Parent do
+            task.wait(0.5)
+            setHairScale(newHairValue)
+        end
+    end)
+end
+
+local function onCharacterAdded(character)
+    applyAvatar(character)
+    task.wait(0.5)
+    applyCustomAnimations(character)
+end
+
+localPlayer.CharacterAdded:Connect(onCharacterAdded)
+
+if localPlayer.Character then
+    task.spawn(function()
+        onCharacterAdded(localPlayer.Character)
+    end)
 end
 
 -- ==================== HITBOX EXPANDER SYSTEM ====================
@@ -3389,4 +3617,4 @@ Self.CharacterAdded:Connect(function(newChar)
     canWallHop = true
     lastWallHopTime = 0
 end)
-
+end
