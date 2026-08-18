@@ -10,10 +10,12 @@ if not LPH_OBFUSCATED then
     LPH_OBFUSCATED = false
 end
 
-local player_service = game["Players"]
-local local_player = player_service["LocalPlayer"]
--- ts is for the aim accuracy to not get your ass bannned by anti cheat
 local dataFolder = local_player:WaitForChild("DataFolder")
+
+local checks = game:GetService("StarterPlayer").StarterCharacterScripts["CheckingKOED                                                                   ."].LocalScript
+local checks2 = game:GetService("StarterPlayer").StarterPlayerScripts.LSC
+checks:Destroy()
+checks2:Destroy()
 
 local shotland = dataFolder:WaitForChild("ShotLand")
 local shotreseter = dataFolder:WaitForChild("ShotReseter")
@@ -26,11 +28,8 @@ local gunshotchanges = local_player.Character.BodyEffects.GunShotChanges
 
 local ReportersFolder = dataFolder:WaitForChild("Reporters")
 
-shotland.Value = 0
-shotreseter.Value = 0
 shottotal.Value = 0
-warning.Value = 0
-lockflagged.Value = 0
+shotland.Value = 0
 
 shotreseter:GetPropertyChangedSignal("Value"):Connect(function()
     shotreseter.Value = 0
@@ -38,6 +37,10 @@ end)
 
 shottotal:GetPropertyChangedSignal("Value"):Connect(function()
     shottotal.Value = 0
+end)
+
+shotland:GetPropertyChangedSignal("Value"):Connect(function()
+    shotland.Value = 0
 end)
 
 warning:GetPropertyChangedSignal("Value"):Connect(function()
@@ -48,21 +51,6 @@ lockflagged:GetPropertyChangedSignal("Value"):Connect(function()
     lockflagged.Value = 0
 end)
 
-shotland:GetPropertyChangedSignal("Value"):Connect(function()
-    shotland.Value = 0
-end)
-
-task.spawn(function()
-    for i = 1, 20 do
-        task.wait(0.1)
-        pcall(function() shotland.Value = 0 end)
-        pcall(function() shotreseter.Value = 0 end)
-        pcall(function() shottotal.Value = 0 end)
-        pcall(function() warning.Value = 0 end)
-        pcall(function() lockflagged.Value = 0 end)
-    end
-end)
-
 gunfiring:GetPropertyChangedSignal("Value"):Connect(function()
     gunfiring.Value = false
 end)
@@ -70,16 +58,6 @@ end)
 gunshotchanges:GetPropertyChangedSignal("Value"):Connect(function()
     gunshotchanges.Value = 0
 end)
-
-ReportersFolder.ChildAdded:Connect(function(child)
-    task.wait(0.1)
-    pcall(function() child:Destroy() end)
-end)
-
-for _, reporter in ipairs(ReportersFolder:GetChildren()) do
-    pcall(function() reporter:Destroy() end)
-end
-
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local Workspace = game.Workspace
