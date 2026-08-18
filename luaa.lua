@@ -1,5 +1,3 @@
-
-
 if not LPH_ENCSTR then
     LPH_ENCSTR = function(str) return str end
 end
@@ -9,7 +7,6 @@ end
 if not LPH_OBFUSCATED then
     LPH_OBFUSCATED = false
 end
-
 
 local player_service = game["Players"]
 local local_player = player_service["LocalPlayer"]
