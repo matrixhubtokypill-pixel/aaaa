@@ -1,4 +1,4 @@
-    if not LPH_ENCSTR then
+if not LPH_ENCSTR then
         LPH_ENCSTR = function(str) return str end
     end
     if not LPH_NO_VIRTUALIZE then
@@ -689,9 +689,9 @@ do
     SilentStatus.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y - 139)
     SilentStatus.Visible = showStatus
     
-    -- TriggerBot status - COMBINED into one text
+    -- Triggerbot status - COMBINED into one text
     local TriggerStatus = Drawing.new("Text")
-    TriggerStatus.Text = "TriggerBot: N/A"
+    TriggerStatus.Text = "Triggerbot: N/A"
     TriggerStatus.Color = Color3.fromRGB(255, 255, 255)
     TriggerStatus.Size = 14
     TriggerStatus.Outline = true
@@ -735,16 +735,16 @@ do
             SilentStatus.Color = Color3.fromRGB(255, 255, 255)
         end
         
-        -- TriggerBot status
+        -- Triggerbot status
         local triggerEnabled = getgenv().saved.Osiris['Triggerbot']['Enabled']
         local triggerTarget = Script.Locals.TriggerbotTarget
         local triggerState = Script.Locals.TriggerState
         
         if triggerEnabled and triggerState and triggerTarget then
-            TriggerStatus.Text = string.format("TriggerBot: %s", triggerTarget.DisplayName)
+            TriggerStatus.Text = string.format("Triggerbot: %s", triggerTarget.DisplayName)
             TriggerStatus.Color = Color3.fromRGB(255, 255, 255)
         else
-            TriggerStatus.Text = "TriggerBot: N/A"
+            TriggerStatus.Text = "Triggerbot: N/A"
             TriggerStatus.Color = Color3.fromRGB(255, 255, 255)
         end
     end
@@ -789,7 +789,7 @@ end
     local SilentAimPart = Instance.new("Part")
     SilentAimPart.Name = math.random(1, 99999999)
 
-    -- TriggerBot Parts
+    -- Triggerbot Parts
     local TriggerPart = Instance.new("Part")
     TriggerPart.Name = math.random(1, 99999999)
     local CanTriggerbotShoot = true
@@ -2839,7 +2839,7 @@ end
         end
     end
 
-        -- ==================== TRIGGERBOT ====================
+        -- ==================== Triggerbot ====================
         local function raycastTrigger(origin, direction, raycastParams)
             local result = workspace:Raycast(origin, direction, raycastParams)
             if result and result.Instance then
@@ -2858,8 +2858,8 @@ end
         triggerRaycastParams.FilterDescendantsInstances = {TriggerPart}
 
         function Script:Triggerbot()
-            local triggerBotConfig = getgenv().saved.Osiris['Triggerbot']
-            if not triggerBotConfig['Enabled'] then return end
+            local TriggerbotConfig = getgenv().saved.Osiris['Triggerbot']
+            if not TriggerbotConfig['Enabled'] then return end
             
             local selfCharacter = Self.Character
             if not selfCharacter then return end
@@ -2876,8 +2876,8 @@ end
             if targetingMode == 'Auto' then
                 -- Auto mode: constantly track closest player
                 Script.Locals.TriggerbotTarget = Script:GetClosestPlayerToCursor(
-                    triggerBotConfig['Max Distance'] * 100,
-                    triggerBotConfig['Radius'] * 5
+                    TriggerbotConfig['Max Distance'] * 1040,
+                    TriggerbotConfig['Radius'] * 5
                 )
             else
                 -- Toggle mode: use the toggle target (set by keybind)
@@ -2917,25 +2917,25 @@ end
             
             -- Check distance
             local targetDistance = (selfCharacter.HumanoidRootPart.Position - target.Character.HumanoidRootPart.Position).Magnitude
-            if targetDistance > triggerBotConfig['Max Distance'] then 
+            if targetDistance > TriggerbotConfig['Max Distance'] then 
                 TriggerPart.Position = Vector3.zero 
                 return 
             end
             
             -- Setup trigger part
             TriggerPart.Size = Vector3.new(
-                triggerBotConfig['FOV']['X'] or 3.3,
-                triggerBotConfig['FOV']['Y'] or 7,
-                triggerBotConfig['FOV']['Z'] or 3.6
+                TriggerbotConfig['FOV']['X'] or 3.3,
+                TriggerbotConfig['FOV']['Y'] or 7,
+                TriggerbotConfig['FOV']['Z'] or 3.6
             )
             TriggerPart.Parent = workspace
             TriggerPart.Anchored = true
             TriggerPart.CanCollide = false
-            TriggerPart.Transparency = triggerBotConfig['FOV']['Visible'] and 0.7 or 1
+            TriggerPart.Transparency = TriggerbotConfig['FOV']['Visible'] and 0.7 or 1
             TriggerPart.Color = Color3.new(1, 0, 0)
             
             -- Prediction
-            local prediction = triggerBotConfig['Prediction']
+            local prediction = TriggerbotConfig['Prediction']
             if prediction['Enabled'] then
                 local velocity = GetResolvedVelocity(target.Character.HumanoidRootPart)
                 TriggerPart.Position = target.Character.HumanoidRootPart.Position + 
@@ -2956,7 +2956,7 @@ end
             
             if result and result.Instance == TriggerPart and tool.Name ~= '[Knife]' then
                 local currentTime = tick()
-                if currentTime - Script.Locals.LastTriggerShot >= triggerBotConfig['Cooldown'] then
+                if currentTime - Script.Locals.LastTriggerShot >= TriggerbotConfig['Cooldown'] then
                     Script.Locals.LastTriggerShot = currentTime
                     tool:Activate()
                     TriggerPart.Color = Color3.new(0, 1, 0)
@@ -3149,7 +3149,7 @@ end
             local AimAssistKey = Enum.KeyCode[getgenv().saved.Osiris['General']['Keybind List']['Aim Assist']['Bind']:upper()]
             local SilentAimTarget = Enum.KeyCode[getgenv().saved.Osiris['General']['Keybind List']['Silent Aim']['Target Bind']:upper()]
             local ESPKey = Enum.KeyCode[getgenv().saved.Osiris['General']['Keybind List']['Player']['Visual']:upper()]
-            local TriggerBotTargetKey = Enum.KeyCode[getgenv().saved.Osiris['General']['Keybind List']['Triggerbot']['Target Bind']:upper()]
+            local TriggerbotTargetKey = Enum.KeyCode[getgenv().saved.Osiris['General']['Keybind List']['Triggerbot']['Target Bind']:upper()]
             
             local WSKey = Enum.KeyCode[getgenv().saved.Osiris['General']['Keybind List']['Player']['Walk Speed']:upper()]
             if Input.KeyCode == WSKey and not Processed then
@@ -3174,8 +3174,8 @@ end
                 end
             end
 
-            -- TriggerBot target toggling (only works when Targeting Mode is 'Toggle')
-            if Input.KeyCode == TriggerBotTargetKey and getgenv().saved.Osiris['General']['Targeting Mode'] == 'Toggle' then
+            -- Triggerbot target toggling (only works when Targeting Mode is 'Toggle')
+            if Input.KeyCode == TriggerbotTargetKey and getgenv().saved.Osiris['General']['Targeting Mode'] == 'Toggle' then
                 SP3 = not SP3
                 if SP3 then 
                     Script.Locals.TriggerbotTarget = Script:GetClosestPlayerToCursor(
@@ -3207,9 +3207,9 @@ end
                 end
             end
 
-            -- TriggerBot activation
+            -- Triggerbot activation
             local triggerConfig = getgenv().saved.Osiris['Triggerbot']
-            local TriggerBotKey = Enum.KeyCode[getgenv().saved.Osiris['General']['Keybind List']['Triggerbot']['Bind']:upper()]
+            local TriggerbotKey = Enum.KeyCode[getgenv().saved.Osiris['General']['Keybind List']['Triggerbot']['Bind']:upper()]
             local isMouseInput = triggerConfig['Activation']['Mode'] == 'Mouse'
             local isKeyboardInput = triggerConfig['Activation']['Mode'] == 'Keybind'
             local toggleKey = getgenv().saved.Osiris['General']['Keybind List']['Triggerbot']['Bind']
@@ -3220,7 +3220,7 @@ end
                 elseif triggerConfig['Activation']['Type'] == "Hold" then
                     Script.Locals.TriggerState = true
                 end
-            elseif isKeyboardInput and Input.KeyCode == TriggerBotKey then
+            elseif isKeyboardInput and Input.KeyCode == TriggerbotKey then
                 if triggerConfig['Activation']['Type'] == "Toggle" then
                     Script.Locals.TriggerState = not Script.Locals.TriggerState
                 elseif triggerConfig['Activation']['Type'] == "Hold" then
@@ -3233,14 +3233,14 @@ end
             local triggerConfig = getgenv().saved.Osiris['Triggerbot']
             
             if triggerConfig['Activation']['Type'] == "Hold" then
-                local TriggerBotKey = Enum.KeyCode[getgenv().saved.Osiris['General']['Keybind List']['Triggerbot']:upper()]
+                local TriggerbotKey = Enum.KeyCode[getgenv().saved.Osiris['General']['Keybind List']['Triggerbot']:upper()]
                 local isMouseInput = triggerConfig['Activation']['Mode'] == 'Mouse'
                 local isKeyboardInput = triggerConfig['Activation']['Mode'] == 'Keybind'
                 local toggleKey = getgenv().saved.Osiris['General']['Keybind List']['Triggerbot']
                 
                 if isMouseInput and Input.UserInputType == Enum.UserInputType[toggleKey] then
                     Script.Locals.TriggerState = false
-                elseif isKeyboardInput and Input.KeyCode == TriggerBotKey then
+                elseif isKeyboardInput and Input.KeyCode == TriggerbotKey then
                     Script.Locals.TriggerState = false
                 end
             end
@@ -3343,7 +3343,6 @@ end
     end
 
     RunService.RenderStepped:Connect(GlobalESPUpdate)
-
     -- ==================== AVATAR SYSTEM ====================
 
     local Players = game:GetService("Players")
@@ -3948,4 +3947,4 @@ end
         canWallHop = true
         lastWallHopTime = 0
     end)
-end
+    end
