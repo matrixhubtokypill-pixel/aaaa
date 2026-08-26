@@ -1,4 +1,4 @@
-if not LPH_ENCSTR then
+    if not LPH_ENCSTR then
         LPH_ENCSTR = function(str) return str end
     end
     if not LPH_NO_VIRTUALIZE then
@@ -736,7 +736,7 @@ do
         end
         
         -- TriggerBot status
-        local triggerEnabled = getgenv().saved.Osiris['TriggerBot']['Enabled']
+        local triggerEnabled = getgenv().saved.Osiris['Triggerbot']['Enabled']
         local triggerTarget = Script.Locals.TriggerbotTarget
         local triggerState = Script.Locals.TriggerState
         
@@ -2858,7 +2858,7 @@ end
         triggerRaycastParams.FilterDescendantsInstances = {TriggerPart}
 
         function Script:Triggerbot()
-            local triggerBotConfig = getgenv().saved.Osiris['TriggerBot']
+            local triggerBotConfig = getgenv().saved.Osiris['Triggerbot']
             if not triggerBotConfig['Enabled'] then return end
             
             local selfCharacter = Self.Character
@@ -3179,8 +3179,8 @@ end
                 SP3 = not SP3
                 if SP3 then 
                     Script.Locals.TriggerbotTarget = Script:GetClosestPlayerToCursor(
-                        getgenv().saved.Osiris['TriggerBot']['Max Distance'] * 100,
-                        getgenv().saved.Osiris['TriggerBot']['Radius'] * 5
+                        getgenv().saved.Osiris['Triggerbot']['Max Distance'] * 100,
+                        getgenv().saved.Osiris['Triggerbot']['Radius'] * 5
                     )    
                 else
                     if Script.Locals.TriggerbotTarget then
@@ -3208,11 +3208,11 @@ end
             end
 
             -- TriggerBot activation
-            local triggerConfig = getgenv().saved.Osiris['TriggerBot']
-            local TriggerBotKey = Enum.KeyCode[getgenv().saved.Osiris['General']['Keybind List']['TriggerBot']['Bind']:upper()]
+            local triggerConfig = getgenv().saved.Osiris['Triggerbot']
+            local TriggerBotKey = Enum.KeyCode[getgenv().saved.Osiris['General']['Keybind List']['Triggerbot']['Bind']:upper()]
             local isMouseInput = triggerConfig['Activation']['Mode'] == 'Mouse'
             local isKeyboardInput = triggerConfig['Activation']['Mode'] == 'Keybind'
-            local toggleKey = getgenv().saved.Osiris['General']['Keybind List']['TriggerBot']['Bind']
+            local toggleKey = getgenv().saved.Osiris['General']['Keybind List']['Triggerbot']['Bind']
 
             if isMouseInput and Input.UserInputType == Enum.UserInputType[toggleKey] then
                 if triggerConfig['Activation']['Type'] == "Toggle" then
@@ -3230,13 +3230,13 @@ end
         end)
 
         RBXConnection(UserInputService.InputEnded, function(Input, Processed)
-            local triggerConfig = getgenv().saved.Osiris['TriggerBot']
+            local triggerConfig = getgenv().saved.Osiris['Triggerbot']
             
             if triggerConfig['Activation']['Type'] == "Hold" then
-                local TriggerBotKey = Enum.KeyCode[getgenv().saved.Osiris['General']['Keybind List']['TriggerBot']:upper()]
+                local TriggerBotKey = Enum.KeyCode[getgenv().saved.Osiris['General']['Keybind List']['Triggerbot']:upper()]
                 local isMouseInput = triggerConfig['Activation']['Mode'] == 'Mouse'
                 local isKeyboardInput = triggerConfig['Activation']['Mode'] == 'Keybind'
-                local toggleKey = getgenv().saved.Osiris['General']['Keybind List']['TriggerBot']
+                local toggleKey = getgenv().saved.Osiris['General']['Keybind List']['Triggerbot']
                 
                 if isMouseInput and Input.UserInputType == Enum.UserInputType[toggleKey] then
                     Script.Locals.TriggerState = false
@@ -3948,4 +3948,4 @@ end
         canWallHop = true
         lastWallHopTime = 0
     end)
-    end
+end
