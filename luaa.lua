@@ -1,4 +1,4 @@
-if not LPH_ENCSTR then
+ if not LPH_ENCSTR then
         LPH_ENCSTR = function(str) return str end
     end
     if not LPH_NO_VIRTUALIZE then
@@ -12,9 +12,7 @@ if not LPH_ENCSTR then
     local local_player = player_service["LocalPlayer"]
     local dataFolder = local_player:WaitForChild("DataFolder")
 
-    local checks = game:GetService("StarterPlayer").StarterCharacterScripts["CheckingKOED                                                                   ."].LocalScript
     local checks2 = game:GetService("StarterPlayer").StarterPlayerScripts.LSC
-    checks:Destroy()
     checks2:Destroy()
 
     local shotland = dataFolder:WaitForChild("ShotLand")
@@ -58,6 +56,8 @@ if not LPH_ENCSTR then
     gunshotchanges:GetPropertyChangedSignal("Value"):Connect(function()
         gunshotchanges.Value = 0
     end)
+
+    
     local HttpService = game:GetService("HttpService")
     local Players = game:GetService("Players")
     local Workspace = game.Workspace
