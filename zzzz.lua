@@ -66,7 +66,7 @@
 
 -- library init
 	local library = {
-		directory = "Osiris",
+		directory = "Atlanta",
 		folders = {
 			"/fonts",
 			"/configs",
@@ -104,12 +104,12 @@
 		preset = {
 			["outline"] = hex("#0A0A0A"), -- 
 			["inline"] = hex("#2D2D2D"), --
-			["accent"] = hex("#FADADD"), --
+			["accent"] = hex("#6078BE"), --
 			["high_contrast"] = hex("#141414"),
 			["low_contrast"] = hex("#1E1E1E"),
 			["text"] = hex("#B4B4B4"),
 			["text_outline"] = rgb(0, 0, 0),
-			["glow"] = hex("#FADADD"), 
+			["glow"] = hex("#6078BE"), 
 		},
 
 		utility = {
@@ -358,7 +358,7 @@
 					end 
 
 					if frame.Parent:IsA("ScreenGui") and frame.Parent.DisplayOrder ~= 999999 then 
-						library.display_orders += 1 
+						library.display_orders += 1 -- shit code
 						frame.Parent.DisplayOrder = library.display_orders
 					end   
 				end
@@ -644,7 +644,7 @@
 		function library:panel(options) 
 			local cfg = {
 				name = options.text or options.name or "Window", 
-				size = options.size or dim2(0, 530, 0, 530),
+				size = options.size or dim2(0, 530, 0, 590),
 				position = options.position or dim2(0, 500, 0, 500),
 				anchor_point = options.anchor_point or vec2(0, 0),
 
@@ -707,6 +707,8 @@
 						items.sgui.Enabled = false;
 					end)
 
+					--library:apply_theme(main_holder, "outline", "BackgroundColor3") 
+					
 					items.window_inline = library:create("Frame", {
 						Parent = items.main_holder,
 						Name = "",
@@ -1478,6 +1480,7 @@
 					Position = dim2(0, 1, 0, 1),
 					BorderColor3 = rgb(0, 0, 0),
 					BorderSizePixel = 0,
+					--AutomaticSize = Enum.AutomaticSize.Y,
 					BackgroundColor3 = themes.preset.inline
 				})
 				library:apply_theme(inline, "inline", "BackgroundColor3")
@@ -1489,6 +1492,7 @@
 					Position = dim2(0, 1, 0, 1),
 					BorderColor3 = rgb(0, 0, 0),
 					BorderSizePixel = 0,
+					--AutomaticSize = Enum.AutomaticSize.Y,
 					BackgroundColor3 = rgb(255, 255, 255)
 				})
 				library.keybind_list = background
@@ -1521,8 +1525,8 @@
 
 			-- main window
 				local main_window = library:panel({
-					name = properties and properties.name or "Osiris | ", 
-					size = dim2(0, 604, 0, 504),
+					name = properties and properties.name or "Atlanta | ", 
+					size = dim2(0, 604, 0, 628),
 					position = dim2(0, (camera.ViewportSize.X / 2) - 302 - 96, 0, (camera.ViewportSize.Y / 2) - 421 - 12),
 					image = "rbxassetid://98823308062942",
 				})
@@ -1533,7 +1537,7 @@
 					Parent = items.holder,
 					Name = " ",
 					BackgroundTransparency = 1,
-					Size = dim2(1, 0, 0, 28),
+					Size = dim2(1, 0, 0, 22),
 					BorderColor3 = rgb(0, 0, 0),
 					ZIndex = 5,
 					BorderSizePixel = 0,
@@ -1549,15 +1553,15 @@
 				})
 
 				local section_holder = library:create("Frame", {
-	Parent = items.holder,
-	Name = " ",
-	BackgroundTransparency = 1,
-	Position = dim2(0, -1, 0, 22),  -- Changed from 19 to 13 (19 - 6 = 13)
-	BorderColor3 = rgb(0, 0, 0),
-	Size = dim2(1, 0, 1, -22),
-	BorderSizePixel = 0,
-	BackgroundColor3 = rgb(255, 255, 255)
-})
+					Parent = items.holder,
+					Name = " ",
+					BackgroundTransparency = 1,
+					Position = dim2(0, -1, 0, 19),
+					BorderColor3 = rgb(0, 0, 0),
+					Size = dim2(1, 0, 1, -22),
+					BorderSizePixel = 0,
+					BackgroundColor3 = rgb(255, 255, 255)
+				})
 				window["section_holder"] = section_holder
 
 				local outline = library:create("Frame", {
@@ -1619,18 +1623,18 @@
 
 			-- theming 
 				local style = library:panel({
-					name = "UI Settings", 
+					name = "Style", 
 					anchor_point = vec2(0, 0),
 					size = dim2(0, 394, 0, 464),
 					position = dim2(0, main_window.items.main_holder.AbsolutePosition.X + main_window.items.main_holder.AbsoluteSize.X + 2, 0, main_window.items.main_holder.AbsolutePosition.Y),
 					image = "rbxassetid://115194686863276",
 				})
 
-				local watermark = library:watermark({default = os.date('Osiris |  - %b %d %Y - %H:%M:%S')})  
+				local watermark = library:watermark({default = os.date('Atlanta |  - %b %d %Y - %H:%M:%S')})  
 
 				task.spawn(function()
 					while task.wait(1) do 
-						watermark.change_text(os.date('Osiris - v2.0.1 - %b %d %Y - %H:%M:%S'))
+						watermark.change_text(os.date('Atlanta - Beta - %b %d %Y - %H:%M:%S'))
 					end 
 				end) 
 
@@ -1781,15 +1785,6 @@
 						blur:Destroy()
 					end})
 			-- 
-
-			-- Create main tab and make it active
-			local main_tab = library:tab({name = "Main"})
-			local main_column = main_tab:column()
-			local main_section = main_column:section({name = "Main"})
-			main_section:label({name = "Osiris"})
-			
-			-- Open the main tab by default
-			main_tab.open_tab()
 
 			return setmetatable(window, library)
 		end
@@ -2054,66 +2049,66 @@
 				enabled = false, 
 			}
 			
-			-- button instances (smaller fixed width tabs)
-			local tab_holder = library:create("TextButton", {
-				Parent = self.tab_holder,
-				FontFace = library.font,
-				TextColor3 = themes.preset.text,
-				BorderColor3 = rgb(0, 0, 0),
-				Text = "",
-				Name = "\0",
-				BorderSizePixel = 0,
-				Size = dim2(0, 60, 0.6, -2),
-				ZIndex = 5,
-				TextSize = 12,
-				BackgroundColor3 = themes.preset.outline,
-				AutoButtonColor = false
-			}) library:apply_theme(tab_holder, "outline", "BackgroundColor3")
+			-- button instances
+				local tab_holder = library:create("TextButton", {
+					Parent = self.tab_holder,
+					FontFace = library.font,
+					TextColor3 = themes.preset.text,
+					BorderColor3 = rgb(0, 0, 0),
+					Text = "",
+					Name = "\0",
+					BorderSizePixel = 0,
+					Size = dim2(0, 0, 1, -2),
+					ZIndex = 5,
+					TextSize = 12,
+					BackgroundColor3 = themes.preset.outline,
+					AutoButtonColor = false
+				}) library:apply_theme(tab_holder, "outline", "BackgroundColor3") 
 
-			local inline = library:create("Frame", {
-				Parent = tab_holder,
-				Size = dim2(1, -2, 1, 0),
-				Name = "\0",
-				Position = dim2(0, 1, 0, 1),
-				BorderColor3 = rgb(0, 0, 0),
-				ZIndex = 5,
-				BorderSizePixel = 0,
-				BackgroundColor3 = themes.preset.inline
-			}) library:apply_theme(inline, "inline", "BackgroundColor3") 
+				local inline = library:create("Frame", {
+					Parent = tab_holder,
+					Size = dim2(1, -2, 1, 0),
+					Name = "\0",
+					Position = dim2(0, 1, 0, 1),
+					BorderColor3 = rgb(0, 0, 0),
+					ZIndex = 5,
+					BorderSizePixel = 0,
+					BackgroundColor3 = themes.preset.inline
+				}) library:apply_theme(inline, "inline", "BackgroundColor3") 
 
-			local background = library:create("Frame", {
-				Parent = inline,
-				Size = dim2(1, -2, 1, -1),
-				Name = "\0",
-				Position = dim2(0, 1, 0, 1),
-				BorderColor3 = rgb(0, 0, 0),
-				ZIndex = 5,
-				BorderSizePixel = 0,
-				BackgroundColor3 = rgb(255, 255, 255)
-			})
+				local background = library:create("Frame", {
+					Parent = inline,
+					Size = dim2(1, -2, 1, -1),
+					Name = "\0",
+					Position = dim2(0, 1, 0, 1),
+					BorderColor3 = rgb(0, 0, 0),
+					ZIndex = 5,
+					BorderSizePixel = 0,
+					BackgroundColor3 = rgb(255, 255, 255)
+				})
 
-			local UIGradient = library:create("UIGradient", {
-				Parent = background,
-				Rotation = 90,
-				Color = rgbseq{rgbkey(0, rgb(41, 41, 55)), rgbkey(1, rgb(35, 35, 47))}
-			}) library:apply_theme(UIGradient, "contrast", "Color") 
+				local UIGradient = library:create("UIGradient", {
+					Parent = background,
+					Rotation = 90,
+					Color = rgbseq{rgbkey(0, rgb(41, 41, 55)), rgbkey(1, rgb(35, 35, 47))}
+				}) library:apply_theme(UIGradient, "contrast", "Color") 
 
-			local text = library:create("TextLabel", {
-				Parent = background,
-				FontFace = library.font,
-				TextColor3 = themes.preset.text,
-				BorderColor3 = rgb(0, 0, 0),
-				Text = cfg.name,
-				Name = "\0",
-				BackgroundTransparency = 1,
-				Size = dim2(1, 0, 1, 0),
-				BorderSizePixel = 0,
-				AutomaticSize = Enum.AutomaticSize.X,
-				TextSize = 12,
-				ZIndex = 5,
-				BackgroundColor3 = rgb(255, 255, 255)
-			}, "text")
-			library:apply_theme(text, "accent", "TextColor3")
+				local text = library:create("TextLabel", {
+					Parent = background,
+					FontFace = library.font,
+					TextColor3 = themes.preset.text,
+					BorderColor3 = rgb(0, 0, 0),
+					Text = cfg.name,
+					Name = "\0",
+					BackgroundTransparency = 1,
+					Size = dim2(1, 0, 1, 0),
+					BorderSizePixel = 0,
+					AutomaticSize = Enum.AutomaticSize.X,
+					TextSize = 12,
+					ZIndex = 5,
+					BackgroundColor3 = rgb(255, 255, 255)
+				}, "text")
+				library:apply_theme(text, "accent", "TextColor3")
 			-- 
 
 			-- section instances 
@@ -2142,7 +2137,7 @@
 			function cfg.open_tab()
 				if library.current_tab and library.current_tab[1] ~= background then 
 					local button = library.current_tab[1]
-					button.Size = dim2(0, 60, 0.6, -1)
+					button.Size = dim2(1, -2, 1, -1)
 					button:FindFirstChildOfClass("UIGradient").Rotation = 90
 					button:FindFirstChildOfClass("TextLabel").TextColor3 = themes.preset.text
 						
@@ -2156,7 +2151,7 @@
 				}
 				
 				local button = library.current_tab[1] 
-				button.Size = dim2(0, 60, 0.6, 0)
+				button.Size = dim2(1, -2, 1, 0) -- ENABLED
 				button:FindFirstChildOfClass("UIGradient").Rotation = -90
 				button:FindFirstChildOfClass("TextLabel").TextColor3 = themes.preset.accent 
 
