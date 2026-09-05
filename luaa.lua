@@ -1,7 +1,7 @@
 local placeId = tostring(game.PlaceId)
 
 local gameScripts = {
-    ["2788229376"] = 'loadstring(game:HttpGet("https://pastebin.com/raw/4m9MfVCR"))()',
+    ["2788229376"] = 'loadstring(game:HttpGet("https://pastebin.com/raw/Wef4CVDY"))()',
     ["9825515356"] = 'loadstring(game:HttpGet(""))()',
     ["des hood"]   = 'loadstring(game:HttpGet(""))()',
     ["der hood"]   = 'loadstring(game:HttpGet(""))()',
