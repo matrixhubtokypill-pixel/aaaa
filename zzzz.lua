@@ -2062,20 +2062,21 @@ end
 			}
 			
 			-- button instances
-				local tab_holder = library:create("TextButton", {
-					Parent = self.tab_holder,
-					FontFace = library.font,
-					TextColor3 = themes.preset.text,
-					BorderColor3 = rgb(0, 0, 0),
-					Text = "",
-					Name = "\0",
-					BorderSizePixel = 0,
-					Size = dim2(0, 0, 1, -2),
-					ZIndex = 5,
-					TextSize = 12,
-					BackgroundColor3 = themes.preset.outline,
-					AutoButtonColor = false
-				}) library:apply_theme(tab_holder, "outline", "BackgroundColor3") 
+					-- button instances (fixed width)
+		local tab_holder = library:create("TextButton", {
+			Parent = self.tab_holder,
+			FontFace = library.font,
+			TextColor3 = themes.preset.text,
+			BorderColor3 = rgb(0, 0, 0),
+			Text = "",
+			Name = "\0",
+			BorderSizePixel = 0,
+			Size = dim2(0, 75, 0.6, -2), -- Fixed width of 75 pixels instead of filling
+			ZIndex = 5,
+			TextSize = 12,
+			BackgroundColor3 = themes.preset.outline,
+			AutoButtonColor = false
+		}) library:apply_theme(tab_holder, "outline", "BackgroundColor3")
 
 				local inline = library:create("Frame", {
 					Parent = tab_holder,
