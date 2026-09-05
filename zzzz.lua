@@ -644,7 +644,7 @@
 		function library:panel(options) 
 			local cfg = {
 				name = options.text or options.name or "Window", 
-				size = options.size or dim2(0, 530, 0, 590),
+				size = options.size or dim2(0, 530, 0, 530),
 				position = options.position or dim2(0, 500, 0, 500),
 				anchor_point = options.anchor_point or vec2(0, 0),
 
@@ -1619,7 +1619,7 @@
 
 			-- theming 
 				local style = library:panel({
-					name = "Style", 
+					name = "UI Settings", 
 					anchor_point = vec2(0, 0),
 					size = dim2(0, 394, 0, 464),
 					position = dim2(0, main_window.items.main_holder.AbsolutePosition.X + main_window.items.main_holder.AbsoluteSize.X + 2, 0, main_window.items.main_holder.AbsolutePosition.Y),
@@ -1630,7 +1630,7 @@
 
 				task.spawn(function()
 					while task.wait(1) do 
-						watermark.change_text(os.date('Osiris - Beta - %b %d %Y - %H:%M:%S'))
+						watermark.change_text(os.date('Osiris - v2.0.1 - %b %d %Y - %H:%M:%S'))
 					end 
 				end) 
 
