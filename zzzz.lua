@@ -1785,10 +1785,18 @@
 	-- 
 
 	-- Create default tab with the main section visible
-		local main_tab = library:tab({name = "Main"})
-		local main_column = main_tab:column()
-		local main_section = main_column:section({name = "Main"})
-		main_section:label({name = "Osiris"})
+			-- Create main tab as the only visible tab initially
+	local main_tab = library:tab({name = "Main"})
+	local main_column = main_tab:column()
+	local main_section = main_column:section({name = "Main"})
+	main_section:label({name = "Welcome to Atlanta"})
+	
+	-- Automatically open the main tab
+	main_tab.open_tab()
+
+	-- Hide the Style and Configurations panels initially (they're created but not opened)
+	-- The panels are already created above, we just need to make sure only main is shown
+	-- The main window is already created and visible
 
 	return setmetatable(window, library)
 end
@@ -2139,34 +2147,34 @@ end
 			-- 
 
 			function cfg.open_tab()
-				if library.current_tab and library.current_tab[1] ~= background then 
-					local button = library.current_tab[1]
-					button.Size = dim2(1, -2, 1, -1)
-					button:FindFirstChildOfClass("UIGradient").Rotation = 90
-					button:FindFirstChildOfClass("TextLabel").TextColor3 = themes.preset.text
-						
-					library.current_tab[2].Visible = false
-					
-					library.current_tab = nil
-				end
-				
-				library.current_tab = {
-					background, section_holder
-				}
-				
-				local button = library.current_tab[1] 
-				button.Size = dim2(1, -2, 1, 0) -- ENABLED
-				button:FindFirstChildOfClass("UIGradient").Rotation = -90
-				button:FindFirstChildOfClass("TextLabel").TextColor3 = themes.preset.accent 
+	if library.current_tab and library.current_tab[1] ~= background then 
+		local button = library.current_tab[1]
+		button.Size = dim2(1, -2, 0.6, -1) -- Changed from 1 to 0.6
+		button:FindFirstChildOfClass("UIGradient").Rotation = 90
+		button:FindFirstChildOfClass("TextLabel").TextColor3 = themes.preset.text
+			
+		library.current_tab[2].Visible = false
+		
+		library.current_tab = nil
+	end
+	
+	library.current_tab = {
+		background, section_holder
+	}
+	
+	local button = library.current_tab[1] 
+	button.Size = dim2(1, -2, 0.6, 0) -- Changed from 1 to 0.6
+	button:FindFirstChildOfClass("UIGradient").Rotation = -90
+	button:FindFirstChildOfClass("TextLabel").TextColor3 = themes.preset.accent 
 
-				library.current_tab[2].Visible = true 
+	library.current_tab[2].Visible = true 
 
-				if library.current_element_open and library.current_element_open ~= cfg then 
-					library.current_element_open.set_visible(false)
-					library.current_element_open.open = false 
-					library.current_element_open = nil 
-				end
-			end
+	if library.current_element_open and library.current_element_open ~= cfg then 
+		library.current_element_open.set_visible(false)
+		library.current_element_open.open = false 
+		library.current_element_open = nil 
+	end
+end
 			
 			tab_holder.MouseButton1Click:Connect(cfg.open_tab)
 			
