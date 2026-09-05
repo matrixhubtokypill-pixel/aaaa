@@ -1790,14 +1790,6 @@
 
 	return setmetatable(window, library)
 end
-
-	-- Hide the Style and Configurations panels initially (they're created but not opened)
-	-- The panels are already created above, we just need to make sure only main is shown
-	-- The main window is already created and visible
-
-	return setmetatable(window, library)
-end
-
 		function library:watermark(options) 
 			local cfg = {
 				default = options.text or options.default or os.date('drain.lol | %b %d %Y | %H:%M')
