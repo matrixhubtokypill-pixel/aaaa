@@ -1533,7 +1533,7 @@
 					Parent = items.holder,
 					Name = " ",
 					BackgroundTransparency = 1,
-					Size = dim2(1, 0, 0, 12),
+					Size = dim2(1, 0, 0, 28),
 					BorderColor3 = rgb(0, 0, 0),
 					ZIndex = 5,
 					BorderSizePixel = 0,
@@ -1552,7 +1552,7 @@
 	Parent = items.holder,
 	Name = " ",
 	BackgroundTransparency = 1,
-	Position = dim2(0, -1, 0, 6),  -- Changed from 19 to 13 (19 - 6 = 13)
+	Position = dim2(0, -1, 0, 22),  -- Changed from 19 to 13 (19 - 6 = 13)
 	BorderColor3 = rgb(0, 0, 0),
 	Size = dim2(1, 0, 1, -22),
 	BorderSizePixel = 0,
