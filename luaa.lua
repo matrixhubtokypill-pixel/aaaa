@@ -1,3 +1,4 @@
+
     if not LPH_ENCSTR then
         LPH_ENCSTR = function(str) return str end
     end
@@ -649,6 +650,7 @@
         Script.Locals.LastTriggerShot = 0
         Script.Locals.TriggerState = false
         Script.Locals.TriggerbotTarget = nil
+        Script.Locals.IsJumpPowering = false
     end
     local function SetRegion(Region)
         Script.Locals.CodeRegion = Region
@@ -2769,20 +2771,35 @@ end
             end
         end
 
--- ==================== DELAY CHANGER ====================
 function Script:ApplyGunDelay(tool)
     if not tool or not tool:IsA("Tool") then return end
 
     local delayCfg = getgenv().saved.Osiris['Weapon Modifications']['Delay Changer']
     if not delayCfg or not delayCfg['Enabled'] then return end
 
-    local delay = delayCfg[tool.Name]
-    if delay == nil then
-        delay = delayCfg['Others']
+    local delay
+    local weaponEntry = delayCfg[tool.Name]
+    
+    if weaponEntry ~= nil then
+        if type(weaponEntry) == "table" and weaponEntry['Value'] ~= nil then
+            delay = weaponEntry['Value']
+        elseif type(weaponEntry) == "number" then
+            delay = weaponEntry
+        end
     end
+    
+    if delay == nil then
+        local othersEntry = delayCfg['Others']
+        if type(othersEntry) == "table" and othersEntry['Value'] ~= nil then
+            delay = othersEntry['Value']
+        elseif type(othersEntry) == "number" then
+            delay = othersEntry
+        end
+    end
+    
     if delay == nil then return end
 
-    -- Override tool cooldown values (what the game/gun clients use)
+    -- Override tool cooldown values
     local shooting = tool:FindFirstChild("ShootingCooldown")
     if shooting and shooting:IsA("ValueBase") then
         pcall(function() shooting.Value = delay end)
@@ -2793,15 +2810,15 @@ function Script:ApplyGunDelay(tool)
         pcall(function() tolerance.Value = delay end)
     end
 
-    -- Also update the table Silent Aim uses for its own fire rate check
+    -- Update WeaponInfo for Silent Aim's fire rate check
     WeaponInfo.Delays[tool.Name] = delay
 end
 
+-- Setup helper functions
 local function SetupDelayForTool(tool)
     if not tool or not tool:IsA("Tool") then return end
     Script:ApplyGunDelay(tool)
 
-    -- If cooldown values are added later, re-apply
     tool.ChildAdded:Connect(function(child)
         if child.Name == "ShootingCooldown" or child.Name == "ToleranceCooldown" then
             task.defer(function()
@@ -2825,7 +2842,7 @@ local function WatchCharacterDelays(char)
     end)
 end
 
--- Current character
+-- Initialize delay changer for current character
 if Self.Character then
     WatchCharacterDelays(Self.Character)
 end
@@ -2843,7 +2860,7 @@ Self.Backpack.ChildAdded:Connect(function(v)
     end
 end)
 
--- Catch anything that appears later under tools (safety net)
+-- Safety net for new cooldown values
 game.DescendantAdded:Connect(function(v)
     if not getgenv().saved.Osiris['Weapon Modifications']['Delay Changer']['Enabled'] then return end
     if (v.Name == "ShootingCooldown" or v.Name == "ToleranceCooldown") and v:IsA("ValueBase") then
@@ -2854,7 +2871,7 @@ game.DescendantAdded:Connect(function(v)
     end
 end)
 
--- Keep values forced (some games reset cooldowns)
+-- Keep values forced
 task.spawn(function()
     while true do
         task.wait(0.5)
@@ -3100,44 +3117,24 @@ end)
         end
 
         function Script:Physics()
-            if not Self.Character or not Self.Character:FindFirstChild("Humanoid") then return end
-            local Hum = Self.Character.Humanoid
-            
-            if getgenv().saved.Osiris['Player']['Anti Fall'] then
-                if Hum.Health > 1 and Hum:GetState() == Enum.HumanoidStateType.FallingDown then
-                    Hum:ChangeState("GettingUp")
-                end
-            end
-
-            if Script.Locals.IsWalkSpeeding and getgenv().saved.Osiris['Walk Speed']['Enabled'] then
-                Hum.WalkSpeed = getgenv().saved.Osiris['Walk Speed']['Speed']
-            end
+    if not Self.Character or not Self.Character:FindFirstChild("Humanoid") then return end
+    local Hum = Self.Character.Humanoid
+    
+    if getgenv().saved.Osiris['Player']['Anti Fall'] then
+        if Hum.Health > 1 and Hum:GetState() == Enum.HumanoidStateType.FallingDown then
+            Hum:ChangeState("GettingUp")
         end
-
-        local function HijackTool()
-            local character = Self.Character
-            if not character then return end
-            
-            local tool = character:FindFirstChildWhichIsA("Tool")
-            if not tool then return end
-            
-            if not tool._originalActivate then
-                tool._originalActivate = tool.Activate
-            end
-            
-            tool.Activate = function(self)
-                local isAimed = Script.Locals.IsAimed
-                Script.Locals.IsAimed = false 
-                tool._originalActivate(self)
-                Script.Locals.IsAimed = isAimed 
-            end
-        end
-
-        Self.CharacterAdded:Connect(function()
-            task.wait(0.5)
-            HijackTool()
-        end)
     end
+
+    if Script.Locals.IsWalkSpeeding and getgenv().saved.Osiris['Walk Speed']['Enabled'] then
+        Hum.WalkSpeed = getgenv().saved.Osiris['Walk Speed']['Speed']
+    end
+
+    -- Jump Power (merged here)
+    if Script.Locals.IsJumpPowering and getgenv().saved.Osiris['Jump Power']['Enabled'] then
+        Hum.JumpPower = getgenv().saved.Osiris['Jump Power']['Power']
+    end
+end
     do
         local FOVOsiris = getgenv().saved.Osiris['Silent Aim']['Field Of View']
         local SilentAimOsiris = getgenv().saved.Osiris['Silent Aim']
@@ -3289,6 +3286,16 @@ end)
                 Script.Locals.IsWalkSpeeding = not Script.Locals.IsWalkSpeeding
                 if not Script.Locals.IsWalkSpeeding and Self.Character and Self.Character:FindFirstChild("Humanoid") then
                     Self.Character.Humanoid.WalkSpeed = 16 
+                end
+            end
+
+            -- Add this inside the RBXConnection(UserInputService.InputBegan, function(Input, Processed)
+            local JumpPowerKey = Enum.KeyCode[getgenv().saved.Osiris['General']['Keybind List']['Player']['Jump Power']:upper()]
+            if Input.KeyCode == JumpPowerKey and not Processed then
+                Script.Locals.IsJumpPowering = not Script.Locals.IsJumpPowering
+                if not Script.Locals.IsJumpPowering and Self.Character and Self.Character:FindFirstChild("Humanoid") then
+                    -- Reset to default jump power (50)
+                    Self.Character.Humanoid.JumpPower = 50
                 end
             end
 
@@ -4345,4 +4352,5 @@ end
         canWallHop = true
         lastWallHopTime = 0
     end)
+  end
 end
