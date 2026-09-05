@@ -1,241 +1,244 @@
-local uis = cloneref(game:GetService("UserInputService"))
-local players = cloneref(game:GetService("Players"))
-local ws = cloneref(game:GetService("Workspace"))
-local http_service = cloneref(game:GetService("HttpService"))
-local gui_service = cloneref(game:GetService("GuiService"))
-local lighting = cloneref(game:GetService("Lighting"))
-local run = cloneref(game:GetService("RunService"))
-local stats = cloneref(game:GetService("Stats"))
-local coregui = cloneref(game:GetService("CoreGui"))
-local debris = cloneref(game:GetService("Debris"))
-local tween_service = cloneref(game:GetService("TweenService"))
-local sound_service = cloneref(game:GetService("SoundService"))
-local starter_gui = cloneref(game:GetService("StarterGui"))
-local rs = cloneref(game:GetService("ReplicatedStorage"))
+-- variables
+	local uis = cloneref(game:GetService("UserInputService"))
+	local players = cloneref(game:GetService("Players"))
+	local ws = cloneref(game:GetService("Workspace"))
+	local http_service = cloneref(game:GetService("HttpService"))
+	local gui_service = cloneref(game:GetService("GuiService"))
+	local lighting = cloneref(game:GetService("Lighting"))
+	local run = cloneref(game:GetService("RunService"))
+	local stats = cloneref(game:GetService("Stats"))
+	local coregui = cloneref(game:GetService("CoreGui"))
+	local debris = cloneref(game:GetService("Debris"))
+	local tween_service = cloneref(game:GetService("TweenService"))
+	local sound_service = cloneref(game:GetService("SoundService"))
+	local starter_gui = cloneref(game:GetService("StarterGui"))
+	local rs = cloneref(game:GetService("ReplicatedStorage"))
 
-local vec2 = Vector2.new
-local vec3 = Vector3.new
-local dim2 = UDim2.new
-local dim = UDim.new 
-local rect = Rect.new
-local cfr = CFrame.new
-local empty_cfr = cfr()
-local point_object_space = empty_cfr.PointToObjectSpace
-local angle = CFrame.Angles
-local dim_offset = UDim2.fromOffset
+	local vec2 = Vector2.new
+	local vec3 = Vector3.new
+	local dim2 = UDim2.new
+	local dim = UDim.new 
+	local rect = Rect.new
+	local cfr = CFrame.new
+	local empty_cfr = cfr()
+	local point_object_space = empty_cfr.PointToObjectSpace
+	local angle = CFrame.Angles
+	local dim_offset = UDim2.fromOffset
 
-local color = Color3.new
-local hsv = Color3.fromHSV
-local rgb = Color3.fromRGB
-local hex = Color3.fromHex
-local rgbseq = ColorSequence.new
-local rgbkey = ColorSequenceKeypoint.new
-local numseq = NumberSequence.new
-local numkey = NumberSequenceKeypoint.new
+	local color = Color3.new
+	local hsv = Color3.fromHSV
+	local rgb = Color3.fromRGB
+	local hex = Color3.fromHex
+	local rgbseq = ColorSequence.new
+	local rgbkey = ColorSequenceKeypoint.new
+	local numseq = NumberSequence.new
+	local numkey = NumberSequenceKeypoint.new
 
-local camera = ws.CurrentCamera
-local lp = players.LocalPlayer 
-local mouse = lp:GetMouse() 
-local gui_offset = gui_service:GetGuiInset().Y
+	local camera = ws.CurrentCamera
+	local lp = players.LocalPlayer 
+	local mouse = lp:GetMouse() 
+	local gui_offset = gui_service:GetGuiInset().Y
 
-local max = math.max 
-local floor = math.floor 
-local min = math.min 
-local abs = math.abs 
-local noise = math.noise
-local rad = math.rad 
-local random = math.random 
-local pow = math.pow 
-local sin = math.sin 
-local pi = math.pi 
-local tan = math.tan 
-local atan2 = math.atan2 
-local cos = math.cos 
-local round = math.round;
-local clamp = math.clamp; 
-local ceil = math.ceil; 
-local sqrt = math.sqrt;
-local acos = math.acos; 
+	local max = math.max 
+	local floor = math.floor 
+	local min = math.min 
+	local abs = math.abs 
+	local noise = math.noise
+	local rad = math.rad 
+	local random = math.random 
+	local pow = math.pow 
+	local sin = math.sin 
+	local pi = math.pi 
+	local tan = math.tan 
+	local atan2 = math.atan2 
+	local cos = math.cos 
+	local round = math.round;
+	local clamp = math.clamp; 
+	local ceil = math.ceil; 
+	local sqrt = math.sqrt;
+	local acos = math.acos; 
 
-local insert = table.insert 
-local find = table.find 
-local remove = table.remove
-local concat = table.concat
+	local insert = table.insert 
+	local find = table.find 
+	local remove = table.remove
+	local concat = table.concat
+-- 
 
 -- library init
-local library = {
-	directory = "Atlanta",
-	folders = {
-		"/fonts",
-		"/configs",
-		"/images"
-	},
-	flags = {},
-	config_flags = {},
-	visible_flags = {}, 
-	guis = {}, 
-	connections = {},   
-	notifications = {},
-	
-
-	current_tab, 
-	current_element_open, 
-	dock_button_holder,  
-	old_config; 
-	font, 
-	keybind_list,
-	binds = {}, 
-	
-	copied_flag; 
-	is_rainbow;
-
-	instances = {}; 
-	drawings = {};
-
-	display_orders = 0; 
-}
-
-local flags = library.flags
-local config_flags = library.config_flags
-
-local themes = {
-	preset = {
-		["outline"] = hex("#0A0A0A"), -- 
-		["inline"] = hex("#2D2D2D"), --
-		["accent"] = hex("#6078BE"), --
-		["high_contrast"] = hex("#141414"),
-		["low_contrast"] = hex("#1E1E1E"),
-		["text"] = hex("#B4B4B4"),
-		["text_outline"] = rgb(0, 0, 0),
-		["glow"] = hex("#6078BE"), 
-	},
-
-	utility = {
-		["outline"] = {
-			["BackgroundColor3"] = {}, 	
-			["Color"] = {}, 
+	local library = {
+		directory = "Osiris",
+		folders = {
+			"/fonts",
+			"/configs",
+			"/images"
 		},
-		["inline"] = {
-			["BackgroundColor3"] = {}, 	
-			["ImageColor3"] = {},
+		flags = {},
+		config_flags = {},
+		visible_flags = {}, 
+		guis = {}, 
+		connections = {},   
+		notifications = {},
+		playerlist_data = {},
+
+		current_tab, 
+		current_element_open, 
+		dock_button_holder,  
+		old_config; 
+		font, 
+		keybind_list,
+		binds = {}, 
+		
+		copied_flag; 
+		is_rainbow;
+
+		instances = {}; 
+		drawings = {};
+
+		display_orders = 0; 
+	}
+
+	local flags = library.flags
+	local config_flags = library.config_flags
+
+	local themes = {
+		preset = {
+			["outline"] = hex("#0A0A0A"), -- 
+			["inline"] = hex("#2D2D2D"), --
+			["accent"] = hex("#6078BE"), --
+			["high_contrast"] = hex("#141414"),
+			["low_contrast"] = hex("#1E1E1E"),
+			["text"] = hex("#B4B4B4"),
+			["text_outline"] = rgb(0, 0, 0),
+			["glow"] = hex("#6078BE"), 
 		},
-		["accent"] = {
-			["BackgroundColor3"] = {}, 	
-			["TextColor3"] = {}, 
-			["ImageColor3"] = {}, 
-			["ScrollBarImageColor3"] = {} 
-		},
-		["contrast"] = {
-			["Color"] = {}, 	
-		},
-		["text"] = {
-			["TextColor3"] = {}, 	
-		},
-		["text_outline"] = {
-			["Color"] = {}, 	
-		},
-		["glow"] = {
-			["ImageColor3"] = {}, 	
+
+		utility = {
+			["outline"] = {
+				["BackgroundColor3"] = {}, 	
+				["Color"] = {}, 
+			},
+			["inline"] = {
+				["BackgroundColor3"] = {}, 	
+				["ImageColor3"] = {},
+			},
+			["accent"] = {
+				["BackgroundColor3"] = {}, 	
+				["TextColor3"] = {}, 
+				["ImageColor3"] = {}, 
+				["ScrollBarImageColor3"] = {} 
+			},
+			["contrast"] = {
+				["Color"] = {}, 	
+			},
+			["text"] = {
+				["TextColor3"] = {}, 	
+			},
+			["text_outline"] = {
+				["Color"] = {}, 	
+			},
+			["glow"] = {
+				["ImageColor3"] = {}, 	
+			}, 
+			["high_contrast"] = {
+				["BackgroundColor3"] = {},
+			},
+			["low_contrast"] = {
+				["BackgroundColor3"] = {},
+			}
 		}, 
-		["high_contrast"] = {
-			["BackgroundColor3"] = {},
-		},
-		["low_contrast"] = {
-			["BackgroundColor3"] = {},
-		}
-	}, 
 
-	find = {
-		["Frame"] = "BackgroundColor3", 
-		["TextLabel"] = "TextColor3", 
-		["UIGradient"] = "Color",
-		["UIStroke"] = "Color",
-		["ImageLabel"] = "ImageColor3",
-		["TextButton"] = "BackgroundColor3", 
-		["ScrollingFrame"] = "ScrollBarImageColor3"
-	}
-}
-
-local keys = {
-	[Enum.KeyCode.LeftShift] = "LS",
-	[Enum.KeyCode.RightShift] = "RS",
-	[Enum.KeyCode.LeftControl] = "LC",
-	[Enum.KeyCode.RightControl] = "RC",
-	[Enum.KeyCode.Insert] = "INS",
-	[Enum.KeyCode.Backspace] = "BS",
-	[Enum.KeyCode.Return] = "Ent",
-	[Enum.KeyCode.LeftAlt] = "LA",
-	[Enum.KeyCode.RightAlt] = "RA",
-	[Enum.KeyCode.CapsLock] = "CAPS",
-	[Enum.KeyCode.One] = "1",
-	[Enum.KeyCode.Two] = "2",
-	[Enum.KeyCode.Three] = "3",
-	[Enum.KeyCode.Four] = "4",
-	[Enum.KeyCode.Five] = "5",
-	[Enum.KeyCode.Six] = "6",
-	[Enum.KeyCode.Seven] = "7",
-	[Enum.KeyCode.Eight] = "8",
-	[Enum.KeyCode.Nine] = "9",
-	[Enum.KeyCode.Zero] = "0",
-	[Enum.KeyCode.KeypadOne] = "Num1",
-	[Enum.KeyCode.KeypadTwo] = "Num2",
-	[Enum.KeyCode.KeypadThree] = "Num3",
-	[Enum.KeyCode.KeypadFour] = "Num4",
-	[Enum.KeyCode.KeypadFive] = "Num5",
-	[Enum.KeyCode.KeypadSix] = "Num6",
-	[Enum.KeyCode.KeypadSeven] = "Num7",
-	[Enum.KeyCode.KeypadEight] = "Num8",
-	[Enum.KeyCode.KeypadNine] = "Num9",
-	[Enum.KeyCode.KeypadZero] = "Num0",
-	[Enum.KeyCode.Minus] = "-",
-	[Enum.KeyCode.Equals] = "=",
-	[Enum.KeyCode.Tilde] = "~",
-	[Enum.KeyCode.LeftBracket] = "[",
-	[Enum.KeyCode.RightBracket] = "]",
-	[Enum.KeyCode.RightParenthesis] = ")",
-	[Enum.KeyCode.LeftParenthesis] = "(",
-	[Enum.KeyCode.Semicolon] = ",",
-	[Enum.KeyCode.Quote] = "'",
-	[Enum.KeyCode.BackSlash] = "\\",
-	[Enum.KeyCode.Comma] = ",",
-	[Enum.KeyCode.Period] = ".",
-	[Enum.KeyCode.Slash] = "/",
-	[Enum.KeyCode.Asterisk] = "*",
-	[Enum.KeyCode.Plus] = "+",
-	[Enum.KeyCode.Period] = ".",
-	[Enum.KeyCode.Backquote] = "`",
-	[Enum.UserInputType.MouseButton1] = "MB1",
-	[Enum.UserInputType.MouseButton2] = "MB2",
-	[Enum.UserInputType.MouseButton3] = "MB3",
-	[Enum.KeyCode.Escape] = "ESC",
-	[Enum.KeyCode.Space] = "SPC",
-}
-	
-library.__index = library
-
-for _, path in next, library.folders do 
-	makefolder(library.directory .. path)
-end 
-
-writefile("ffff.ttf", game:HttpGet("https://github.com/weasely111/beta/raw/refs/heads/main/fs-tahoma-8px.ttf"))
-
-local tahoma = {
-	name = "SmallestPixel7",
-	faces = {
-		{
-			name = "Regular",
-			weight = 400,
-			style = "normal",
-			assetId = getcustomasset("ffff.ttf")
+		find = {
+			["Frame"] = "BackgroundColor3", 
+			["TextLabel"] = "TextColor3", 
+			["UIGradient"] = "Color",
+			["UIStroke"] = "Color",
+			["ImageLabel"] = "ImageColor3",
+			["TextButton"] = "BackgroundColor3", 
+			["ScrollingFrame"] = "ScrollBarImageColor3"
 		}
 	}
-}
 
-writefile("dddd.ttf", http_service:JSONEncode(tahoma))
+	local keys = {
+		[Enum.KeyCode.LeftShift] = "LS",
+		[Enum.KeyCode.RightShift] = "RS",
+		[Enum.KeyCode.LeftControl] = "LC",
+		[Enum.KeyCode.RightControl] = "RC",
+		[Enum.KeyCode.Insert] = "INS",
+		[Enum.KeyCode.Backspace] = "BS",
+		[Enum.KeyCode.Return] = "Ent",
+		[Enum.KeyCode.LeftAlt] = "LA",
+		[Enum.KeyCode.RightAlt] = "RA",
+		[Enum.KeyCode.CapsLock] = "CAPS",
+		[Enum.KeyCode.One] = "1",
+		[Enum.KeyCode.Two] = "2",
+		[Enum.KeyCode.Three] = "3",
+		[Enum.KeyCode.Four] = "4",
+		[Enum.KeyCode.Five] = "5",
+		[Enum.KeyCode.Six] = "6",
+		[Enum.KeyCode.Seven] = "7",
+		[Enum.KeyCode.Eight] = "8",
+		[Enum.KeyCode.Nine] = "9",
+		[Enum.KeyCode.Zero] = "0",
+		[Enum.KeyCode.KeypadOne] = "Num1",
+		[Enum.KeyCode.KeypadTwo] = "Num2",
+		[Enum.KeyCode.KeypadThree] = "Num3",
+		[Enum.KeyCode.KeypadFour] = "Num4",
+		[Enum.KeyCode.KeypadFive] = "Num5",
+		[Enum.KeyCode.KeypadSix] = "Num6",
+		[Enum.KeyCode.KeypadSeven] = "Num7",
+		[Enum.KeyCode.KeypadEight] = "Num8",
+		[Enum.KeyCode.KeypadNine] = "Num9",
+		[Enum.KeyCode.KeypadZero] = "Num0",
+		[Enum.KeyCode.Minus] = "-",
+		[Enum.KeyCode.Equals] = "=",
+		[Enum.KeyCode.Tilde] = "~",
+		[Enum.KeyCode.LeftBracket] = "[",
+		[Enum.KeyCode.RightBracket] = "]",
+		[Enum.KeyCode.RightParenthesis] = ")",
+		[Enum.KeyCode.LeftParenthesis] = "(",
+		[Enum.KeyCode.Semicolon] = ",",
+		[Enum.KeyCode.Quote] = "'",
+		[Enum.KeyCode.BackSlash] = "\\",
+		[Enum.KeyCode.Comma] = ",",
+		[Enum.KeyCode.Period] = ".",
+		[Enum.KeyCode.Slash] = "/",
+		[Enum.KeyCode.Asterisk] = "*",
+		[Enum.KeyCode.Plus] = "+",
+		[Enum.KeyCode.Period] = ".",
+		[Enum.KeyCode.Backquote] = "`",
+		[Enum.UserInputType.MouseButton1] = "MB1",
+		[Enum.UserInputType.MouseButton2] = "MB2",
+		[Enum.UserInputType.MouseButton3] = "MB3",
+		[Enum.KeyCode.Escape] = "ESC",
+		[Enum.KeyCode.Space] = "SPC",
+	}
+		
+	library.__index = library
 
-library.font = Font.new(getcustomasset("dddd.ttf"), Enum.FontWeight.Regular)
+	for _, path in next, library.folders do 
+		makefolder(library.directory .. path)
+	end 
 
-local config_holder 
+	writefile("ffff.ttf", game:HttpGet("https://github.com/weasely111/beta/raw/refs/heads/main/fs-tahoma-8px.ttf"))
+
+	local tahoma = {
+		name = "SmallestPixel7",
+		faces = {
+			{
+				name = "Regular",
+				weight = 400,
+				style = "normal",
+				assetId = getcustomasset("ffff.ttf")
+			}
+		}
+	}
+
+	writefile("dddd.ttf", http_service:JSONEncode(tahoma))
+
+	library.font = Font.new(getcustomasset("dddd.ttf"), Enum.FontWeight.Regular)
+
+	local config_holder 
+-- 
 
 -- library functions 
 	-- misc functions
@@ -947,6 +950,277 @@ local config_holder
 			end 
 		end 
 
+		function library:indicator() 
+			local cfg = {
+				items = {};
+			}
+
+			local items = cfg.items; do 
+				items.Window = library:create( "Frame" , {
+					Parent = sgui;
+					Name = "\0";
+					Position = dim2(0, 400, 0, 500);
+					BorderColor3 = rgb(0, 0, 0);
+					Size = dim2(0, 322, 0, 147);
+					BorderSizePixel = 0;
+					BackgroundColor3 = themes.preset.outline
+				});	library:apply_theme(items.Window, "outline", "BackgroundColor3"); library:draggify(items.Window)
+				
+				items.InfoTitle = library:create( "TextLabel" , {
+					FontFace = library.font;
+					TextColor3 = themes.preset.text;
+					BorderColor3 = rgb(0, 0, 0);
+					Text = "Indicators";
+					Parent = items.Window;
+					Name = "\0";
+					Size = dim2(1, 0, 0, 0);
+					Position = dim2(0, 7, 0, 5);
+					BackgroundTransparency = 1;
+					TextXAlignment = Enum.TextXAlignment.Left;
+					BorderSizePixel = 0;
+					ZIndex = 5;
+					AutomaticSize = Enum.AutomaticSize.Y;
+					TextSize = 12;
+				}); 
+
+				items.Accent = library:create( "Frame" , {
+					Parent = items.Window;
+					Name = "\0";
+					Position = dim2(0, 1, 0, 1);
+					BorderColor3 = rgb(0, 0, 0);
+					Size = dim2(1, -2, 1, -2);
+					BorderSizePixel = 0;
+					BackgroundColor3 = themes.preset.accent
+				});	library:apply_theme(items.Accent, "accent", "BackgroundColor3")
+				
+				items.Background = library:create( "Frame" , {
+					Parent = items.Accent;
+					Name = "\0";
+					Position = dim2(0, 1, 0, 1);
+					BorderColor3 = rgb(0, 0, 0);
+					Size = dim2(1, -2, 1, -2);
+					BorderSizePixel = 0;
+					BackgroundColor3 = themes.preset.high_contrast
+				});	library:apply_theme(items.Background, "high_contrast", "BackgroundColor3")
+				
+				items.Inline = library:create( "Frame" , {
+					Parent = items.Background;
+					Name = "\0";
+					Position = dim2(0, 4, 0, 18);
+					BorderColor3 = rgb(0, 0, 0);
+					Size = dim2(1, -8, 1, -22);
+					BorderSizePixel = 0;
+					BackgroundColor3 = themes.preset.outline
+				});	library:apply_theme(items.Inline, "outline", "BackgroundColor3")
+				
+				items.Outline = library:create( "Frame" , {
+					Parent = items.Inline;
+					Name = "\0";
+					Position = dim2(0, 1, 0, 1);
+					BorderColor3 = rgb(0, 0, 0);
+					Size = dim2(1, -2, 1, -2);
+					BorderSizePixel = 0;
+					BackgroundColor3 = themes.preset.inline
+				});	library:apply_theme(items.Outline, "inline", "BackgroundColor3")
+				
+				items.LowContrast = library:create( "Frame" , {
+					Parent = items.Outline;
+					Name = "\0";
+					Position = dim2(0, 1, 0, 1);
+					BorderColor3 = rgb(0, 0, 0);
+					Size = dim2(1, -2, 1, -2);
+					BorderSizePixel = 0;
+					BackgroundColor3 = themes.preset.low_contrast
+				});	library:apply_theme(items.LowContrast, "low_contrast", "BackgroundColor3")
+				
+				items.Inline = library:create( "Frame" , {
+					Parent = items.LowContrast;
+					Name = "\0";
+					Position = dim2(0, 4, 0, 4);
+					BorderColor3 = rgb(0, 0, 0);
+					Size = dim2(1, -8, 1, -8);
+					BorderSizePixel = 0;
+					BackgroundColor3 = themes.preset.inline
+				});	library:apply_theme(items.Inline, "inline", "BackgroundColor3")
+				
+				items.Outline = library:create( "Frame" , {
+					Parent = items.Inline;
+					Name = "\0";
+					Position = dim2(0, 1, 0, 1);
+					BorderColor3 = rgb(0, 0, 0);
+					Size = dim2(1, -2, 1, -2);
+					BorderSizePixel = 0;
+					BackgroundColor3 = themes.preset.outline
+				});	library:apply_theme(items.Outline, "outline", "BackgroundColor3")
+				
+				items.LowContrast = library:create( "Frame" , {
+					Parent = items.Outline;
+					Name = "\0";
+					Position = dim2(0, 1, 0, 1);
+					BorderColor3 = rgb(0, 0, 0);
+					Size = dim2(1, -2, 1, -2);
+					BorderSizePixel = 0;
+					BackgroundColor3 = themes.preset.low_contrast
+				});	library:apply_theme(items.LowContrast, "low_contrast", "BackgroundColor3"); local image_holder = items.LowContrast;
+				
+				items.Inline = library:create( "Frame" , {
+					Parent = items.LowContrast;
+					Name = "\0";
+					Position = dim2(0, 4, 0, 4);
+					BorderColor3 = rgb(0, 0, 0);
+					Size = dim2(1, -8, 1, -8);
+					BorderSizePixel = 0;
+					BackgroundColor3 = themes.preset.inline
+				});	library:apply_theme(items.Inline, "inline", "BackgroundColor3")
+				
+				items.Outline = library:create( "Frame" , {
+					Parent = items.Inline;
+					Name = "\0";
+					Position = dim2(0, 1, 0, 1);
+					BorderColor3 = rgb(0, 0, 0);
+					Size = dim2(1, -2, 1, -2);
+					BorderSizePixel = 0;
+					BackgroundColor3 = themes.preset.outline
+				});	library:apply_theme(items.Outline, "outline", "BackgroundColor3")
+				
+				items.LowContrast = library:create( "Frame" , {
+					Parent = items.Outline;
+					Name = "\0";
+					Position = dim2(0, 1, 0, 1);
+					BorderColor3 = rgb(0, 0, 0);
+					Size = dim2(1, -2, 1, -2);
+					BorderSizePixel = 0;
+					BackgroundColor3 = themes.preset.low_contrast
+				});	library:apply_theme(items.LowContrast, "low_contrast", "BackgroundColor3")
+
+				items.InfoTitle = library:create( "TextLabel" , {
+					FontFace = library.font;
+					TextColor3 = themes.preset.text;
+					BorderColor3 = rgb(0, 0, 0);
+					Text = "Info";
+					Parent = items.Outline;
+					Name = "\0";
+					Size = dim2(1, 0, 0, 0);
+					Position = dim2(0, 7, 0, 5);
+					BackgroundTransparency = 1;
+					TextXAlignment = Enum.TextXAlignment.Left;
+					BorderSizePixel = 0;
+					ZIndex = 5;
+					AutomaticSize = Enum.AutomaticSize.Y;
+					TextSize = 12;
+				});
+
+				library:create( "UIStroke" , {
+					Parent = items.InfoTitle
+				});
+				
+				items.Accent = library:create( "Frame" , {
+					Name = "\0";
+					Parent = items.LowContrast;
+					BorderColor3 = rgb(0, 0, 0);
+					Size = dim2(1, 0, 0, 2);
+					BackgroundColor3 = themes.preset.accent;
+					BorderSizePixel = 0;
+				});	library:apply_theme(items.Accent, "accent", "BackgroundColor3");
+				
+				items.Shadow = library:create( "Frame" , {
+					AnchorPoint = vec2(0, 1);
+					Parent = items.Accent;
+					Name = "\0";
+					Position = dim2(0, 0, 1, 0);
+					BorderColor3 = rgb(0, 0, 0);
+					Size = dim2(1, 0, 0, 1);
+					BorderSizePixel = 0;
+					BackgroundColor3 = themes.preset.accent;
+				}); library:apply_theme(items.Shadow, "accent", "BackgroundColor3");
+				
+				library:create( "UIGradient" , {
+					Rotation = 90;
+					Parent = items.Shadow;
+					Color = rgbseq{rgbkey(0, rgb(150, 150, 150)), rgbkey(1, rgb(150, 150, 150))}
+				});
+				
+				items.holder = library:create( "Frame" , {
+					Parent = items.LowContrast;
+					Name = "\0";
+					Position = dim2(0, 76, 0, 21);
+					BorderColor3 = rgb(0, 0, 0);
+					Size = dim2(1, -80, 0, 0);
+					BorderSizePixel = 0;
+				});	
+
+				library:create("UIListLayout", {
+					Parent = items.holder,
+					Padding = dim(0, 4),
+					HorizontalAlignment = Enum.HorizontalAlignment.Center,
+					SortOrder = Enum.SortOrder.LayoutOrder
+				})
+
+				items.Inline = library:create( "Frame" , {
+					Parent = image_holder;
+					Name = "\0";
+					Position = dim2(0, 10, 0, 28);
+					BorderColor3 = rgb(0, 0, 0);
+					Size = dim2(0, 68, 0, 67);
+					BorderSizePixel = 0;
+					BackgroundColor3 = themes.preset.outline
+				});	library:apply_theme(items.Inline, "outline", "BackgroundColor3")
+				
+				items.Outline = library:create( "Frame" , {
+					Parent = items.Inline;
+					Name = "\0";
+					Position = dim2(0, 1, 0, 1);
+					BorderColor3 = rgb(0, 0, 0);
+					Size = dim2(1, -2, 1, -2);
+					BorderSizePixel = 0;
+					BackgroundColor3 = themes.preset.inline
+				});	library:apply_theme(items.Outline, "inline", "BackgroundColor3")
+				
+				items.LowContrast = library:create( "Frame" , {
+					Parent = items.Outline;
+					Name = "\0";
+					Position = dim2(0, 1, 0, 1);
+					BorderColor3 = rgb(0, 0, 0);
+					Size = dim2(1, -2, 1, -2);
+					BorderSizePixel = 0;
+					BackgroundColor3 = themes.preset.low_contrast
+				});	library:apply_theme(items.LowContrast, "low_contrast", "BackgroundColor3")
+
+				items.Profile = library:create( "ImageLabel" , {
+					BorderColor3 = rgb(0, 0, 0);
+					Parent = items.LowContrast;
+					Image = "rbxasset://textures/ui/GuiImagePlaceholder.png";
+					BackgroundTransparency = 1;
+					Name = "\0";
+					Size = dim2(1, 0, 1, 0);
+					BorderSizePixel = 0;
+				});	
+
+				local section = setmetatable(items, library)
+				items.label = section:label({name = "Player: "})
+				items.slider = section:slider({name = "Health", custom = rgb(255, 0, 0), min = 0, max = 100, default = 50, input = true})
+				
+				library:create( "UIStroke" , {
+					Parent = items.InfoTitle
+				});            
+			end
+
+			function cfg.set_visible(bool)
+				items.Window.Visible = bool
+			end 
+
+			function cfg.change_health(int)
+				items.slider.set(int)
+			end
+
+			function cfg.change_profile(player)
+				items.label.set(string.format("Player: %s (%s)", player.Name, player.DisplayName))
+				items.Profile.Image = "https://www.roblox.com/headshot-thumbnail/image?userId=".. player.UserId .."&width=420&height=420&format=png"
+			end 
+
+			return setmetatable(cfg, library)
+		end     
+
 		function library:window(properties)
 			local window = {opened = true}            
 			local opened = {}
@@ -1251,7 +1525,7 @@ local config_holder
 
 			-- main window
 				local main_window = library:panel({
-					name = properties and properties.name or "Atlanta | ", 
+					name = properties and properties.name or "Osiris | ", 
 					size = dim2(0, 604, 0, 628),
 					position = dim2(0, (camera.ViewportSize.X / 2) - 302 - 96, 0, (camera.ViewportSize.Y / 2) - 421 - 12),
 					image = "rbxassetid://98823308062942",
@@ -1356,11 +1630,11 @@ local config_holder
 					image = "rbxassetid://115194686863276",
 				})
 
-				local watermark = library:watermark({default = os.date('Atlanta |  - %b %d %Y - %H:%M:%S')})  
+				local watermark = library:watermark({default = os.date('Osiris |  - %b %d %Y - %H:%M:%S')})  
 
 				task.spawn(function()
 					while task.wait(1) do 
-						watermark.change_text(os.date('Atlanta - Beta - %b %d %Y - %H:%M:%S'))
+						watermark.change_text(os.date('Osiris - Beta - %b %d %Y - %H:%M:%S'))
 					end 
 				end) 
 
@@ -1511,23 +1785,6 @@ local config_holder
 						blur:Destroy()
 					end})
 			-- 
-					
-			-- esp preview
-				local holder = library:panel({
-					name = "ESP Preview", 
-					anchor_point = vec2(0, 0),
-					size = dim2(0, 300, 0, 325),
-					position = dim2(0, style.items.main_holder.AbsolutePosition.X, 0, style.items.main_holder.AbsolutePosition.Y + style.items.main_holder.AbsoluteSize.Y + 2),
-					image = "rbxassetid://77684377836328",
-				})  
-				
-				local items = holder.items
-				
-				local column = setmetatable(items, library):column() 
-				window.esp_section = column:section({name = "Main"})
-			--  
-
-			--  
 
 			return setmetatable(window, library)
 		end
@@ -4854,7 +5111,6 @@ local config_holder
 						
 			return setmetatable(cfg, library)   
 		end 
-    end
 	-- 
 -- 
 
