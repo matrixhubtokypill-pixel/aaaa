@@ -1558,7 +1558,7 @@
 					BackgroundTransparency = 1,
 					Position = dim2(0, -1, 0, 19),
 					BorderColor3 = rgb(0, 0, 0),
-					Size = dim2(0.75, 0, 1, -22),
+					Size = dim2(1, 0, 1, -22),
 					BorderSizePixel = 0,
 					BackgroundColor3 = rgb(255, 255, 255)
 				})
