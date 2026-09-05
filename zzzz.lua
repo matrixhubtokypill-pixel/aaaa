@@ -1521,7 +1521,7 @@
 
 			-- main window
 				local main_window = library:panel({
-					name = properties and properties.name or "Atlanta | ", 
+					name = properties and properties.name or "Osiris | ", 
 					size = dim2(0, 604, 0, 504),
 					position = dim2(0, (camera.ViewportSize.X / 2) - 302 - 96, 0, (camera.ViewportSize.Y / 2) - 421 - 12),
 					image = "rbxassetid://98823308062942",
@@ -1533,7 +1533,7 @@
 					Parent = items.holder,
 					Name = " ",
 					BackgroundTransparency = 1,
-					Size = dim2(1, 0, 0, 22),
+					Size = dim2(1, 0, 0, 12),
 					BorderColor3 = rgb(0, 0, 0),
 					ZIndex = 5,
 					BorderSizePixel = 0,
@@ -1549,15 +1549,15 @@
 				})
 
 				local section_holder = library:create("Frame", {
-					Parent = items.holder,
-					Name = " ",
-					BackgroundTransparency = 1,
-					Position = dim2(0, -1, 0, 19),
-					BorderColor3 = rgb(0, 0, 0),
-					Size = dim2(1, 0, 1, -22),
-					BorderSizePixel = 0,
-					BackgroundColor3 = rgb(255, 255, 255)
-				})
+	Parent = items.holder,
+	Name = " ",
+	BackgroundTransparency = 1,
+	Position = dim2(0, -1, 0, 6),  -- Changed from 19 to 13 (19 - 6 = 13)
+	BorderColor3 = rgb(0, 0, 0),
+	Size = dim2(1, 0, 1, -22),
+	BorderSizePixel = 0,
+	BackgroundColor3 = rgb(255, 255, 255)
+})
 				window["section_holder"] = section_holder
 
 				local outline = library:create("Frame", {
@@ -1626,11 +1626,11 @@
 					image = "rbxassetid://115194686863276",
 				})
 
-				local watermark = library:watermark({default = os.date('Atlanta |  - %b %d %Y - %H:%M:%S')})  
+				local watermark = library:watermark({default = os.date('Osiris |  - %b %d %Y - %H:%M:%S')})  
 
 				task.spawn(function()
 					while task.wait(1) do 
-						watermark.change_text(os.date('Atlanta - Beta - %b %d %Y - %H:%M:%S'))
+						watermark.change_text(os.date('Osiris - Beta - %b %d %Y - %H:%M:%S'))
 					end 
 				end) 
 
