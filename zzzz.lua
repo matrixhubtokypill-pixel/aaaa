@@ -1729,7 +1729,7 @@
 			-- cfg holder (shortened width)
 				local holder = library:panel({
 					name = "Configurations", 
-					size = dim2(0, 268, 0, 410), -- Shortened from 324 to 268
+					size = dim2(0, 268, 0, 210), -- Shortened from 324 to 268
 					position = dim2(0, items.main_holder.AbsolutePosition.X + items.main_holder.AbsoluteSize.X + 2, 0, items.main_holder.AbsolutePosition.Y),
 					image = "rbxassetid://105199726008012",
 				}) 
