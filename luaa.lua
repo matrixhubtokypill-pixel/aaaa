@@ -3568,7 +3568,7 @@ local AnimPacks = {
     }
 }
 
-local PackNames = {"None", "Bubbly", "Stylish", "Werewolf", "Mage", "Levitation", "Ninja", "Pirate", "Cartoony", "Toy", "Zombie"}
+local PackNames = {"None", "OldSchool", "Bubbly", "Stylish", "Werewolf", "Mage", "Levitation", "Ninja", "Pirate", "Cartoony", "Toy", "Zombie"}
 
 local function ConvertSavedAnimations()
     local anims = CONFIG.Animations
