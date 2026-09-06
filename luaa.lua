@@ -544,6 +544,7 @@ local function InitializeLocals()
     Script.Locals.TriggerState = false
     Script.Locals.TriggerbotTarget = nil
     Script.Locals.IsJumpPowering = false
+    Script.Locals.LastHealth = 100  -- Added for Anti-Stomp
 end
 
 local function SetRegion(Region)
@@ -2985,6 +2986,44 @@ do
         if Script.Locals.IsJumpPowering and getgenv().saved.Osiris['Jump Power']['Enabled'] then
             Hum.JumpPower = getgenv().saved.Osiris['Jump Power']['Power']
         end
+        
+        -- Anti-Stomp
+        Script:AntiStomp()
+    end
+    
+    -- Anti-Stomp Function
+    function Script:AntiStomp()
+        if not getgenv().saved.Osiris['Player']['Anti Stomp'] then return end
+        
+        local character = Self.Character
+        if not character then return end
+        
+        local humanoid = character:FindFirstChild("Humanoid")
+        if not humanoid or humanoid.Health <= 0 then return end
+        
+        local currentHealth = humanoid.Health
+        
+        -- Store previous health if not set
+        if not Script.Locals.LastHealth then
+            Script.Locals.LastHealth = currentHealth
+            return
+        end
+        
+        -- Check for sudden health loss (stomp detection)
+        local healthLoss = Script.Locals.LastHealth - currentHealth
+        
+        -- If lost more than 15 health quickly (stomp threshold)
+        if healthLoss > 15 then
+            -- Check if being stomped (on ground/running state)
+            local state = humanoid:GetState()
+            if state == Enum.HumanoidStateType.Landed or 
+               state == Enum.HumanoidStateType.Running then
+                -- Kill the player to prevent stomp (anti-stomp)
+                humanoid.Health = 0
+            end
+        end
+        
+        Script.Locals.LastHealth = currentHealth
     end
 end
 
@@ -3439,6 +3478,14 @@ local appliedCharacters = {}
 
 local AnimPacks = {
     None = { Run = "", Walk = "", Jump = "", Fall = "", Idle = "", Pose = "" },
+    OldSchool = {
+        Run = "rbxassetid://10921233298",
+        Walk = "rbxassetid://10921244891",
+        Jump = "rbxassetid://10921242013",
+        Fall = "rbxassetid://10921241244",
+        Idle = "rbxassetid://10921233298",
+        Pose = "rbxassetid://10921233298"
+    },
     Bubbly = {
         Run = "rbxassetid://10921057244",
         Walk = "rbxassetid://10980888364",
@@ -3464,12 +3511,12 @@ local AnimPacks = {
         Pose = "rbxassetid://1099492820"
     },
     Mage = {
-        Run = "rbxassetid://707848224",
-        Walk = "rbxassetid://707897309",
-        Jump = "rbxassetid://707853694",
-        Fall = "rbxassetid://707829716",
-        Idle = "rbxassetid://707742142",
-        Pose = "rbxassetid://707855907"
+        Run = "rbxassetid://10921148209",
+        Walk = "rbxassetid://10921152678",
+        Jump = "rbxassetid://10921149743",
+        Fall = "rbxassetid://10921148939",
+        Idle = "rbxassetid://10921144709",
+        Pose = "rbxassetid://10921146941"
     },
     Levitation = {
         Run = "rbxassetid://2510198475",
@@ -3480,12 +3527,12 @@ local AnimPacks = {
         Pose = "rbxassetid://2510197830"
     },
     Ninja = {
-        Run = "rbxassetid://656118341",
-        Walk = "rbxassetid://656121766",
-        Jump = "rbxassetid://656117430",
-        Fall = "rbxassetid://656115606",
-        Idle = "rbxassetid://656117878",
-        Pose = "rbxassetid://656117878"
+        Run = "rbxassetid://10921157929",
+        Walk = "rbxassetid://10921162768",
+        Jump = "rbxassetid://10921160088",
+        Fall = "rbxassetid://10921159222",
+        Idle = "rbxassetid://10921155160",
+        Pose = "rbxassetid://10921156883"
     },
     Pirate = {
         Run = "rbxassetid://750782230",
@@ -3496,12 +3543,12 @@ local AnimPacks = {
         Pose = "rbxassetid://750782770"
     },
     Cartoony = {
-        Run = "rbxassetid://742638842",
-        Walk = "rbxassetid://742640026",
-        Jump = "rbxassetid://742637942",
-        Fall = "rbxassetid://742637544",
-        Idle = "rbxassetid://742637151",
-        Pose = "rbxassetid://742637151"
+        Run = "rbxassetid://10921076136",
+        Walk = "rbxassetid://10921082452",
+        Jump = "rbxassetid://10921078135",
+        Fall = "rbxassetid://10921077030",
+        Idle = "rbxassetid://10921072875",
+        Pose = "rbxassetid://10921074502"
     },
     Toy = {
         Run = "rbxassetid://782842708",
