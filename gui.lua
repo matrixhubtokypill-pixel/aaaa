@@ -270,10 +270,10 @@ do
     secSA:dropdown({ name = "Hit Part", flag = "sa_hitpart",
         items = { "Nearest Point", "Nearest Part", "Head", "HumanoidRootPart" }, default = "Head",
         callback = function(v) cfg['Silent Aim']['Hit Part'] = v end })
-    secSA:dropdown({ name = "NP Mode", flag = "sa_npmode",
+    secSA:dropdown({ name = "Nearest Point Mode", flag = "sa_npmode",
         items = { "Smart", "Basic" }, default = "Smart",
         callback = function(v) cfg['Silent Aim']['Nearest Point']['Mode'] = v end })
-    secSA:slider({ name = "NP Scale", flag = "sa_npscale",
+    secSA:slider({ name = "Nearest Point Scale", flag = "sa_npscale",
         min = 0.1, max = 2, default = 0.36, interval = 0.01,
         callback = function(v) cfg['Silent Aim']['Nearest Point']['Scale'] = v end })
     secSA:toggle({ name = "FOV Enabled", flag = "sa_foven", default = true,
@@ -310,13 +310,13 @@ do
         callback = function(v) cfg['Aim Assist']['Snappiness'] = v end })
     secAA:toggle({ name = "Smart Snappiness", flag = "aa_smartsnap",
         callback = function(v) cfg['Aim Assist']['Smart Snappiness']['Enabled'] = v end })
-    secAA:dropdown({ name = "SS Mode", flag = "aa_ssmode",
+    secAA:dropdown({ name = "Smart Snappiness Mode", flag = "aa_ssmode",
         items = { "Slow", "Fast" }, default = "Slow",
         callback = function(v) cfg['Aim Assist']['Smart Snappiness']['Mode'] = v end })
-    secAA:slider({ name = "SS Min", flag = "aa_ssmin",
+    secAA:slider({ name = "Smart Snappiness Min", flag = "aa_ssmin",
         min = 0.001, max = 0.5, default = 0.021, interval = 0.001,
         callback = function(v) cfg['Aim Assist']['Smart Snappiness']['Min'] = v end })
-    secAA:slider({ name = "SS Max", flag = "aa_ssmax",
+    secAA:slider({ name = "Smart Snappiness Max", flag = "aa_ssmax",
         min = 0.001, max = 0.5, default = 0.047, interval = 0.001,
         callback = function(v) cfg['Aim Assist']['Smart Snappiness']['Max'] = v end })
     secAA:toggle({ name = "Prediction", flag = "aa_pred",
