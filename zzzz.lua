@@ -1634,7 +1634,7 @@
 
 				task.spawn(function()
 					while task.wait(1) do 
-						watermark.change_text(os.date('Osiris - Beta - %b %d %Y - %H:%M:%S'))
+						watermark.change_text(os.date('Osiris - V2.1 - User Build - %b %d %Y - %H:%M:%S'))
 					end 
 				end) 
 
