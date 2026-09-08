@@ -8,68 +8,6 @@ if not LPH_OBFUSCATED then
     LPH_OBFUSCATED = false
 end
 
--- ===== HOOK METHOD - WORKS 100% =====
-local player = game.Players.LocalPlayer
-
--- HOOK THE ACTUAL CHECKER_4 FUNCTION
-pcall(function()
-    local mt = getrawmetatable(game)
-    local oldNamecall = mt.__namecall
-    
-    mt.__namecall = function(self, ...)
-        local args = {...}
-        local method = getnamecallmethod()
-        
-        -- Block CHECKER_4 and FLING_CHECK from firing
-        if method == "FireServer" then
-            if tostring(self) == "MainEvent" or tostring(self) == "BanRemote" then
-                if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" or args[1] == "VELOCITY_CHECK" then
-                    return
-                end
-            end
-        end
-        
-        return oldNamecall(self, ...)
-    end
-    
-    setrawmetatable(game, mt)
-end)
-
--- ALSO BLOCK THE REMOTE DIRECTLY
-local remote = game.ReplicatedStorage:FindFirstChild("MainEvent")
-if remote then
-    remote.OnServerEvent:Connect(function(plr, ...)
-        local args = {...}
-        if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" or args[1] == "VELOCITY_CHECK" then
-            return
-        end
-    end)
-end
-
--- KEEP CHARACTER STATE NORMAL
-local function keepAlive()
-    pcall(function()
-        local char = player.Character
-        if not char then return end
-        
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum and hum.PlatformStand then
-            hum.PlatformStand = false
-        end
-    end)
-end
-
-spawn(function()
-    while wait(1) do
-        keepAlive()
-    end
-end)
-
-player.CharacterAdded:Connect(function()
-    task.wait(1)
-    keepAlive()
-end)
--- ===== YOUR ORIGINAL SCRIPT CONTINUES =====
 local player_service = game["Players"]
 local local_player = player_service["LocalPlayer"]
 local dataFolder = local_player:WaitForChild("DataFolder")
