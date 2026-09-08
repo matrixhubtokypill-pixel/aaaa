@@ -8,107 +8,110 @@ if not LPH_OBFUSCATED then
     LPH_OBFUSCATED = false
 end
 
--- ===== OPTIMIZED ANTI-FLING BYPASS - NO LAG =====
+-- ===== ZERO-LAG ANTI-FLING BYPASS =====
+-- Runs ONCE, no loops, no heartbeat, no fps drops
+
 local player = game.Players.LocalPlayer
 local replicatedStorage = game:GetService("ReplicatedStorage")
 
--- BLOCK REMOTES ONCE (NOT EVERY FRAME)
-local function blockRemotes()
-    pcall(function()
-        local mainEvent = replicatedStorage:FindFirstChild("MainEvent")
-        if mainEvent then
-            mainEvent.OnServerEvent:Connect(function(plr, ...)
-                local args = {...}
-                if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" or args[1] == "VELOCITY_CHECK" or args[1] == "ANTI_FLING" then
-                    return
-                end
-            end)
-            local oldFire = mainEvent.FireServer
-            mainEvent.FireServer = function(...)
-                local args = {...}
-                if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" or args[1] == "VELOCITY_CHECK" or args[1] == "ANTI_FLING" then
-                    return
-                end
-                return oldFire(unpack(args))
-            end
+-- 1. BLOCK CHECKER_4 REMOTE (ONCE)
+local mainEvent = replicatedStorage:FindFirstChild("MainEvent")
+if mainEvent then
+    -- Override FireServer
+    local oldFire = mainEvent.FireServer
+    mainEvent.FireServer = function(...)
+        local args = {...}
+        if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" or args[1] == "VELOCITY_CHECK" or args[1] == "ANTI_FLING" then
+            return
         end
-        
-        local banRemote = replicatedStorage:FindFirstChild("BanRemote")
-        if banRemote then
-            banRemote.OnServerEvent:Connect(function() return end)
-            banRemote.FireServer = function() return end
+        return oldFire(unpack(args))
+    end
+    
+    -- Block OnServerEvent
+    mainEvent.OnServerEvent:Connect(function(plr, ...)
+        local args = {...}
+        if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" or args[1] == "VELOCITY_CHECK" or args[1] == "ANTI_FLING" then
+            return
         end
     end)
 end
 
--- DELETE ANTI-FLING SCRIPTS (RUNS ONCE THEN EVERY 5 SECONDS)
-local function deleteAntiFling()
-    pcall(function()
-        for _, obj in pairs(game:GetDescendants()) do
-            if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript") then
-                local name = string.lower(obj.Name or "")
-                if string.find(name, "anti") or string.find(name, "fling") or string.find(name, "velocity") or string.find(name, "check") then
-                    obj:Destroy()
-                end
+-- 2. DELETE ANTI-FLING SCRIPTS (ONCE)
+pcall(function()
+    for _, obj in pairs(game:GetDescendants()) do
+        if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript") then
+            local name = string.lower(obj.Name or "")
+            if string.find(name, "anti") or string.find(name, "fling") or string.find(name, "velocity") or string.find(name, "check") then
+                obj:Destroy()
             end
         end
-    end)
-end
+    end
+end)
 
--- REMOVE ATTACHMENTS (RUNS ON CHARACTER CHANGE ONLY)
-local function removeAttachments()
-    pcall(function()
-        local character = player.Character
-        if not character then return end
-        
+-- 3. REMOVE ATTACHMENTS (ONCE)
+pcall(function()
+    local character = player.Character
+    if character then
         local rootPart = character:FindFirstChild("HumanoidRootPart")
-        if not rootPart then return end
-        
-        for _, child in pairs(rootPart:GetChildren()) do
-            if child:IsA("Attachment") or child:IsA("Weld") or child:IsA("Constraint") or child:IsA("BodyVelocity") then
-                local name = string.lower(child.Name or "")
-                if string.find(name, "anti") or string.find(name, "fling") or string.find(name, "stomp") or string.find(name, "stop") then
+        if rootPart then
+            for _, child in pairs(rootPart:GetChildren()) do
+                if child:IsA("Attachment") or child:IsA("Weld") or child:IsA("Constraint") or child:IsA("BodyVelocity") then
                     child:Destroy()
                 end
             end
         end
-    end)
-end
-
--- RUN INITIAL SETUP
-blockRemotes()
-deleteAntiFling()
-removeAttachments()
-
--- RE-APPLY EVERY 5 SECONDS (NOT 0.5 - REDUCES LAG)
-spawn(function()
-    while wait(5) do
-        deleteAntiFling()
-        removeAttachments()
     end
 end)
 
--- ONLY CHECK CHARACTER STATE ON RESPAWN (NOT EVERY FRAME)
-player.CharacterAdded:Connect(function()
-    task.wait(1)
-    removeAttachments()
-    deleteAntiFling()
+-- 4. FIX HUMANID STATE (ONCE)
+pcall(function()
+    local character = player.Character
+    if character then
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid and humanoid.PlatformStand then
+            humanoid.PlatformStand = false
+        end
+    end
 end)
 
--- OPTIMIZED: ONLY RUN WHEN NEEDED (NOT ON HEARTBEAT)
--- Instead of running every frame, we use a slower check
-spawn(function()
-    while wait(2) do
-        pcall(function()
-            local character = player.Character
-            if not character then return end
-            
+-- 5. BLOCK BAN REMOTE (ONCE)
+local banRemote = replicatedStorage:FindFirstChild("BanRemote")
+if banRemote then
+    banRemote.OnServerEvent:Connect(function() return end)
+    banRemote.FireServer = function() return end
+end
+
+-- 6. BLOCK OTHER ANTI-FLING REMOTES (ONCE)
+for _, remote in pairs(replicatedStorage:GetChildren()) do
+    if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
+        local name = string.lower(remote.Name or "")
+        if string.find(name, "anti") or string.find(name, "fling") or string.find(name, "check") or string.find(name, "ban") then
+            remote.OnServerEvent:Connect(function() return end)
+            remote.FireServer = function() return end
+        end
+    end
+end
+
+-- 7. ON RESPAWN - RUN ONCE AGAIN (NO LOOPS)
+player.CharacterAdded:Connect(function()
+    task.wait(0.5)
+    pcall(function()
+        local character = player.Character
+        if character then
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            if rootPart then
+                for _, child in pairs(rootPart:GetChildren()) do
+                    if child:IsA("Attachment") or child:IsA("Weld") or child:IsA("Constraint") then
+                        child:Destroy()
+                    end
+                end
+            end
             local humanoid = character:FindFirstChildOfClass("Humanoid")
             if humanoid and humanoid.PlatformStand then
                 humanoid.PlatformStand = false
             end
-        end)
-    end
+        end
+    end)
 end)
 
 local player_service = game["Players"]
