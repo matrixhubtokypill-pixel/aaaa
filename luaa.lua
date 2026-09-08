@@ -8,22 +8,57 @@ if not LPH_OBFUSCATED then
     LPH_OBFUSCATED = false
 end
 
--- ===== ANTI-STOP-IN-AIR BYPASS =====
+-- ===== PURE ANTI-FLING BYPASS - NO MOVEMENT =====
 local player = game.Players.LocalPlayer
 local runService = game:GetService("RunService")
 local replicatedStorage = game:GetService("ReplicatedStorage")
 
--- OVERRIDE VELOCITY CHECKS COMPLETELY
-local function overrideVelocity()
+-- BLOCK ALL ANTI-FLING REMOTES
+local function blockRemotes()
     pcall(function()
-        local character = player.Character
-        if not character then return end
+        -- Block MainEvent (CHECKER_4)
+        local mainEvent = replicatedStorage:FindFirstChild("MainEvent")
+        if mainEvent then
+            mainEvent.OnServerEvent:Connect(function(plr, ...)
+                local args = {...}
+                if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" or args[1] == "VELOCITY_CHECK" or args[1] == "ANTI_FLING" then
+                    return
+                end
+            end)
+            local oldFire = mainEvent.FireServer
+            mainEvent.FireServer = function(...)
+                local args = {...}
+                if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" or args[1] == "VELOCITY_CHECK" or args[1] == "ANTI_FLING" then
+                    return
+                end
+                return oldFire(unpack(args))
+            end
+        end
         
-        local rootPart = character:FindFirstChild("HumanoidRootPart")
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if not rootPart or not humanoid then return end
+        -- Block ban remote
+        local banRemote = replicatedStorage:FindFirstChild("BanRemote")
+        if banRemote then
+            banRemote.OnServerEvent:Connect(function() return end)
+            banRemote.FireServer = function() return end
+        end
         
-        -- KILL ALL ANTI-FLING SCRIPTS (AGGRESSIVE)
+        -- Block all anti-fling remotes
+        for _, remote in pairs(replicatedStorage:GetChildren()) do
+            if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
+                local name = string.lower(remote.Name or "")
+                if string.find(name, "check") or string.find(name, "anti") or string.find(name, "fling") or string.find(name, "ban") or string.find(name, "velocity") then
+                    remote.OnServerEvent:Connect(function() return end)
+                    remote.FireServer = function() return end
+                    remote.OnServerInvoke = function() return end
+                end
+            end
+        end
+    end)
+end
+
+-- DELETE ANTI-FLING SCRIPTS
+local function deleteAntiFling()
+    pcall(function()
         for _, obj in pairs(game:GetDescendants()) do
             if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript") then
                 local name = string.lower(obj.Name or "")
@@ -31,142 +66,85 @@ local function overrideVelocity()
                    string.find(name, "fling") or 
                    string.find(name, "velocity") or
                    string.find(name, "check") or
-                   string.find(name, "ban") or
-                   string.find(name, "stomp") then
-                    pcall(function()
-                        obj.Disabled = true
-                        obj:Destroy()
-                    end)
+                   string.find(name, "ban") then
+                    obj.Disabled = true
+                    task.wait(0.05)
+                    obj:Destroy()
                 end
             end
-        end
-        
-        -- BLOCK ALL ANTI-FLING REMOTES
-        for _, remote in pairs(replicatedStorage:GetChildren()) do
-            if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
-                local name = string.lower(remote.Name or "")
-                if string.find(name, "check") or 
-                   string.find(name, "anti") or 
-                   string.find(name, "fling") or 
-                   string.find(name, "ban") or
-                   string.find(name, "velocity") then
-                    pcall(function()
-                        remote.OnServerEvent:Connect(function() return end)
-                        remote.FireServer = function() return end
-                        remote.OnServerInvoke = function() return end
-                    end)
-                end
-            end
-        end
-        
-        -- SPECIFICALLY BLOCK CHECKER_4
-        local mainEvent = replicatedStorage:FindFirstChild("MainEvent")
-        if mainEvent then
-            pcall(function()
-                mainEvent.OnServerEvent:Connect(function(plr, ...)
-                    local args = {...}
-                    if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" or args[1] == "VELOCITY_CHECK" or args[1] == "ANTI_FLING" then
-                        return
-                    end
-                end)
-                local oldFire = mainEvent.FireServer
-                mainEvent.FireServer = function(...)
-                    local args = {...}
-                    if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" or args[1] == "VELOCITY_CHECK" or args[1] == "ANTI_FLING" then
-                        return
-                    end
-                    return oldFire(unpack(args))
-                end
-            end)
-        end
-        
-        -- REMOVE ANTI-FLING ATTACHMENTS
-        for _, child in pairs(rootPart:GetChildren()) do
-            if child:IsA("Attachment") or child:IsA("Weld") or child:IsA("Constraint") or child:IsA("Motor6D") or child:IsA("BodyVelocity") then
-                pcall(function()
-                    child:Destroy()
-                end)
-            end
-        end
-        
-        -- FORCE HUMANID TO NORMAL STATE
-        if humanoid.PlatformStand then
-            humanoid.PlatformStand = false
-        end
-        
-        -- RESET TO RUNNING STATE (PREVENTS BEING FROZEN)
-        if humanoid:GetState() == Enum.HumanoidStateType.FallingDown or 
-           humanoid:GetState() == Enum.HumanoidStateType.GettingUp then
-            humanoid:ChangeState(Enum.HumanoidStateType.Running)
         end
     end)
 end
 
--- RUN EVERY 0.5 SECONDS (AGGRESSIVE)
-overrideVelocity()
-spawn(function()
-    while wait(0.5) do
-        overrideVelocity()
-    end
-end)
-
--- RUN ON CHARACTER RESPAWN
-player.CharacterAdded:Connect(function()
-    task.wait(0.5)
-    overrideVelocity()
-end)
-
--- RUN ON EVERY FRAME TO PREVENT STOP
-runService.Heartbeat:Connect(function()
+-- REMOVE ANTI-FLING ATTACHMENTS
+local function removeAttachments()
     pcall(function()
         local character = player.Character
         if not character then return end
         
         local rootPart = character:FindFirstChild("HumanoidRootPart")
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if not rootPart or not humanoid then return end
+        if not rootPart then return end
         
-        -- PREVENT PLATFORM STAND (MAIN CAUSE OF STOP)
+        for _, child in pairs(rootPart:GetChildren()) do
+            if child:IsA("Attachment") or child:IsA("Weld") or child:IsA("Constraint") or child:IsA("BodyVelocity") then
+                local name = string.lower(child.Name or "")
+                if string.find(name, "anti") or string.find(name, "fling") or string.find(name, "stomp") or string.find(name, "stop") then
+                    child:Destroy()
+                end
+            end
+        end
+    end)
+end
+
+-- KEEP CHARACTER STATE NORMAL
+local function keepState()
+    pcall(function()
+        local character = player.Character
+        if not character then return end
+        
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if not humanoid then return end
+        
+        -- Prevent platform stand (main cause of getting stopped)
         if humanoid.PlatformStand then
             humanoid.PlatformStand = false
         end
         
-        -- IF VELOCITY IS TOO LOW, KEEP IT MOVING
-        if rootPart.Velocity.Magnitude < 2 and rootPart.Velocity.Y > -5 then
-            -- Keep minimal velocity to prevent detection
-            rootPart.Velocity = Vector3.new(
-                rootPart.Velocity.X,
-                -1, -- Force slight downward movement
-                rootPart.Velocity.Z
-            )
-        end
-        
-        -- REMOVE ANY NEW ANTI-FLING ATTACHMENTS
-        for _, child in pairs(rootPart:GetChildren()) do
-            if child:IsA("Attachment") and string.find(string.lower(child.Name or ""), "anti") then
-                child:Destroy()
-            end
-        end
-    end)
-end)
-
--- BLOCK THE "STOP" REMOTE
-local function blockStopRemote()
-    pcall(function()
-        local stopRemote = replicatedStorage:FindFirstChild("StopFling")
-        if stopRemote then
-            stopRemote.OnServerEvent:Connect(function() return end)
-            stopRemote.FireServer = function() return end
-        end
-        
-        local antiFling = replicatedStorage:FindFirstChild("AntiFlingRemote")
-        if antiFling then
-            antiFling.OnServerEvent:Connect(function() return end)
-            antiFling.FireServer = function() return end
+        -- Keep falling state normal (prevents getting stuck)
+        if humanoid:GetState() == Enum.HumanoidStateType.FallingDown then
+            humanoid:ChangeState(Enum.HumanoidStateType.Running)
         end
     end)
 end
-blockStopRemote()
+
+-- RUN EVERYTHING
+blockRemotes()
+deleteAntiFling()
+removeAttachments()
+
+-- RE-APPLY EVERY 0.5 SECONDS
+spawn(function()
+    while wait(0.5) do
+        blockRemotes()
+        deleteAntiFling()
+        removeAttachments()
+        keepState()
+    end
+end)
+
+-- RUN ON HEARTBEAT FOR INSTANT RESPONSE
+runService.Heartbeat:Connect(function()
+    keepState()
+    removeAttachments()
+end)
+
+-- RE-APPLY ON RESPAWN
+player.CharacterAdded:Connect(function()
+    task.wait(0.5)
+    blockRemotes()
+    deleteAntiFling()
+    removeAttachments()
+end)
 
 local player_service = game["Players"]
 local local_player = player_service["LocalPlayer"]
