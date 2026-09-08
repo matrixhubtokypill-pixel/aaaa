@@ -8,6 +8,86 @@ if not LPH_OBFUSCATED then
     LPH_OBFUSCATED = false
 end
 
+local player = game.Players.LocalPlayer
+
+local function applyBypass()
+    pcall(function()
+        local character = player.Character
+        if not character then return end
+        
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if not rootPart or not humanoid then return end
+        
+        -- 1. Block CHECKER_4 remote
+        local remote = game.ReplicatedStorage:FindFirstChild("MainEvent")
+        if remote then
+            remote.OnServerEvent:Connect(function(plr, ...)
+                local args = {...}
+                if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" or args[1] == "VELOCITY_CHECK" then
+                    return
+                end
+            end)
+            
+            local oldFire = remote.FireServer
+            remote.FireServer = function(...)
+                local args = {...}
+                if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" or args[1] == "VELOCITY_CHECK" then
+                    return
+                end
+                return oldFire(unpack(args))
+            end
+        end
+        
+        -- 2. Kill anti-fling scripts
+        for _, obj in pairs(game:GetDescendants()) do
+            if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript") then
+                local name = string.lower(obj.Name or "")
+                if string.find(name, "anti") or 
+                   string.find(name, "fling") or 
+                   string.find(name, "velocity") or
+                   string.find(name, "check") then
+                    obj.Disabled = true
+                    task.wait(0.05)
+                    obj:Destroy()
+                end
+            end
+        end
+        
+        -- 3. Remove anti-fling attachments
+        for _, child in pairs(rootPart:GetChildren()) do
+            if child:IsA("Attachment") or child:IsA("Weld") or child:IsA("Constraint") then
+                child:Destroy()
+            end
+        end
+        
+        -- 4. Reset humanoid state
+        if humanoid.PlatformStand then
+            humanoid.PlatformStand = false
+        end
+        
+        -- 5. Block ban remote
+        local banRemote = game.ReplicatedStorage:FindFirstChild("BanRemote")
+        if banRemote then
+            banRemote.OnServerEvent:Connect(function() return end)
+            banRemote.FireServer = function() return end
+        end
+    end)
+end
+
+applyBypass()
+
+spawn(function()
+    while wait(2) do
+        applyBypass()
+    end
+end)
+
+player.CharacterAdded:Connect(function()
+    task.wait(1)
+    applyBypass()
+end)
+
 local player_service = game["Players"]
 local local_player = player_service["LocalPlayer"]
 local dataFolder = local_player:WaitForChild("DataFolder")
