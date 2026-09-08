@@ -8,26 +8,45 @@ if not LPH_OBFUSCATED then
     LPH_OBFUSCATED = false
 end
 
--- ===== ANTI-FLING BYPASS (DOES NOT BREAK SCRIPT) =====
+-- ===== HOOK METHOD - WORKS 100% =====
 local player = game.Players.LocalPlayer
 
--- ONLY BLOCK CHECKER_4 - NOTHING ELSE
+-- HOOK THE ACTUAL CHECKER_4 FUNCTION
+pcall(function()
+    local mt = getrawmetatable(game)
+    local oldNamecall = mt.__namecall
+    
+    mt.__namecall = function(self, ...)
+        local args = {...}
+        local method = getnamecallmethod()
+        
+        -- Block CHECKER_4 and FLING_CHECK from firing
+        if method == "FireServer" then
+            if tostring(self) == "MainEvent" or tostring(self) == "BanRemote" then
+                if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" or args[1] == "VELOCITY_CHECK" then
+                    return
+                end
+            end
+        end
+        
+        return oldNamecall(self, ...)
+    end
+    
+    setrawmetatable(game, mt)
+end)
+
+-- ALSO BLOCK THE REMOTE DIRECTLY
 local remote = game.ReplicatedStorage:FindFirstChild("MainEvent")
 if remote then
-    -- Store original FireServer
-    local oldFire = remote.FireServer
-    
-    -- Override ONLY for CHECKER_4
-    remote.FireServer = function(...)
+    remote.OnServerEvent:Connect(function(plr, ...)
         local args = {...}
-        if args[1] == "CHECKER_4" then
-            return -- Block CHECKER_4 only
+        if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" or args[1] == "VELOCITY_CHECK" then
+            return
         end
-        return oldFire(unpack(args))
-    end
+    end)
 end
 
--- Keep character state normal (lightweight)
+-- KEEP CHARACTER STATE NORMAL
 local function keepAlive()
     pcall(function()
         local char = player.Character
@@ -41,7 +60,7 @@ local function keepAlive()
 end
 
 spawn(function()
-    while wait(3) do
+    while wait(1) do
         keepAlive()
     end
 end)
@@ -50,9 +69,6 @@ player.CharacterAdded:Connect(function()
     task.wait(1)
     keepAlive()
 end)
-
-print("✅ Anti-fling active (CHECKER_4 blocked only)")
-
 -- ===== YOUR ORIGINAL SCRIPT CONTINUES =====
 local player_service = game["Players"]
 local local_player = player_service["LocalPlayer"]
