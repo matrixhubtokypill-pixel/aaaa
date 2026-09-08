@@ -7,8 +7,10 @@ end
 if not LPH_OBFUSCATED then
     LPH_OBFUSCATED = false
 end
+
 local player = game.Players.LocalPlayer
 local replicatedStorage = game:GetService("ReplicatedStorage")
+local runService = game:GetService("RunService")
 
 -- BLOCK CHECKER_4
 local remote = replicatedStorage:FindFirstChild("MainEvent")
@@ -23,29 +25,38 @@ if remote then
     end
 end
 
--- RE-APPLY EVERY 1 SECOND
-spawn(function()
-    while wait(1) do
-        pcall(function()
-            -- Re-block CHECKER_4
-            local remote = replicatedStorage:FindFirstChild("MainEvent")
-            if remote then
-                local oldFire = remote.FireServer
-                remote.FireServer = function(...)
-                    local args = {...}
-                    if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" then
-                        return
-                    end
-                    return oldFire(unpack(args))
+-- RUN EVERY FRAME TO PREVENT STOP
+runService.Heartbeat:Connect(function()
+    pcall(function()
+        local char = player.Character
+        if not char then return end
+        
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum and hum.PlatformStand then
+            hum.PlatformStand = false
+        end
+        
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if root then
+            for _, child in pairs(root:GetChildren()) do
+                if child:IsA("Attachment") or child:IsA("Weld") or child:IsA("Constraint") then
+                    child:Destroy()
                 end
             end
-            
-            -- Keep character state normal
-            local char = player.Character
-            if char then
-                local hum = char:FindFirstChildOfClass("Humanoid")
-                if hum and hum.PlatformStand then
-                    hum.PlatformStand = false
+        end
+    end)
+end)
+
+-- DELETE ANTI-FLING SCRIPTS EVERY 2 SECONDS
+spawn(function()
+    while wait(2) do
+        pcall(function()
+            for _, obj in pairs(game:GetDescendants()) do
+                if obj:IsA("Script") or obj:IsA("LocalScript") then
+                    local name = string.lower(obj.Name or "")
+                    if string.find(name, "anti") or string.find(name, "fling") or string.find(name, "velocity") or string.find(name, "check") then
+                        obj:Destroy()
+                    end
                 end
             end
         end)
@@ -66,6 +77,7 @@ player.CharacterAdded:Connect(function()
         end
     end
 end)
+
 
 local player_service = game["Players"]
 local local_player = player_service["LocalPlayer"]
