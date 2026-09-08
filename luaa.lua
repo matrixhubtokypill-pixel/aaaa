@@ -94,7 +94,6 @@ end)
 gunshotchanges:GetPropertyChangedSignal("Value"):Connect(function()
     gunshotchanges.Value = 0
 end)
-..
 
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
