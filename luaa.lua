@@ -8,15 +8,13 @@ if not LPH_OBFUSCATED then
     LPH_OBFUSCATED = false
 end
 
--- ===== PURE ANTI-FLING BYPASS - NO MOVEMENT =====
+-- ===== OPTIMIZED ANTI-FLING BYPASS - NO LAG =====
 local player = game.Players.LocalPlayer
-local runService = game:GetService("RunService")
 local replicatedStorage = game:GetService("ReplicatedStorage")
 
--- BLOCK ALL ANTI-FLING REMOTES
+-- BLOCK REMOTES ONCE (NOT EVERY FRAME)
 local function blockRemotes()
     pcall(function()
-        -- Block MainEvent (CHECKER_4)
         local mainEvent = replicatedStorage:FindFirstChild("MainEvent")
         if mainEvent then
             mainEvent.OnServerEvent:Connect(function(plr, ...)
@@ -35,40 +33,21 @@ local function blockRemotes()
             end
         end
         
-        -- Block ban remote
         local banRemote = replicatedStorage:FindFirstChild("BanRemote")
         if banRemote then
             banRemote.OnServerEvent:Connect(function() return end)
             banRemote.FireServer = function() return end
         end
-        
-        -- Block all anti-fling remotes
-        for _, remote in pairs(replicatedStorage:GetChildren()) do
-            if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
-                local name = string.lower(remote.Name or "")
-                if string.find(name, "check") or string.find(name, "anti") or string.find(name, "fling") or string.find(name, "ban") or string.find(name, "velocity") then
-                    remote.OnServerEvent:Connect(function() return end)
-                    remote.FireServer = function() return end
-                    remote.OnServerInvoke = function() return end
-                end
-            end
-        end
     end)
 end
 
--- DELETE ANTI-FLING SCRIPTS
+-- DELETE ANTI-FLING SCRIPTS (RUNS ONCE THEN EVERY 5 SECONDS)
 local function deleteAntiFling()
     pcall(function()
         for _, obj in pairs(game:GetDescendants()) do
             if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript") then
                 local name = string.lower(obj.Name or "")
-                if string.find(name, "anti") or 
-                   string.find(name, "fling") or 
-                   string.find(name, "velocity") or
-                   string.find(name, "check") or
-                   string.find(name, "ban") then
-                    obj.Disabled = true
-                    task.wait(0.05)
+                if string.find(name, "anti") or string.find(name, "fling") or string.find(name, "velocity") or string.find(name, "check") then
                     obj:Destroy()
                 end
             end
@@ -76,7 +55,7 @@ local function deleteAntiFling()
     end)
 end
 
--- REMOVE ANTI-FLING ATTACHMENTS
+-- REMOVE ATTACHMENTS (RUNS ON CHARACTER CHANGE ONLY)
 local function removeAttachments()
     pcall(function()
         local character = player.Character
@@ -96,54 +75,40 @@ local function removeAttachments()
     end)
 end
 
--- KEEP CHARACTER STATE NORMAL
-local function keepState()
-    pcall(function()
-        local character = player.Character
-        if not character then return end
-        
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if not humanoid then return end
-        
-        -- Prevent platform stand (main cause of getting stopped)
-        if humanoid.PlatformStand then
-            humanoid.PlatformStand = false
-        end
-        
-        -- Keep falling state normal (prevents getting stuck)
-        if humanoid:GetState() == Enum.HumanoidStateType.FallingDown then
-            humanoid:ChangeState(Enum.HumanoidStateType.Running)
-        end
-    end)
-end
-
--- RUN EVERYTHING
+-- RUN INITIAL SETUP
 blockRemotes()
 deleteAntiFling()
 removeAttachments()
 
--- RE-APPLY EVERY 0.5 SECONDS
+-- RE-APPLY EVERY 5 SECONDS (NOT 0.5 - REDUCES LAG)
 spawn(function()
-    while wait(0.5) do
-        blockRemotes()
+    while wait(5) do
         deleteAntiFling()
         removeAttachments()
-        keepState()
     end
 end)
 
--- RUN ON HEARTBEAT FOR INSTANT RESPONSE
-runService.Heartbeat:Connect(function()
-    keepState()
+-- ONLY CHECK CHARACTER STATE ON RESPAWN (NOT EVERY FRAME)
+player.CharacterAdded:Connect(function()
+    task.wait(1)
     removeAttachments()
+    deleteAntiFling()
 end)
 
--- RE-APPLY ON RESPAWN
-player.CharacterAdded:Connect(function()
-    task.wait(0.5)
-    blockRemotes()
-    deleteAntiFling()
-    removeAttachments()
+-- OPTIMIZED: ONLY RUN WHEN NEEDED (NOT ON HEARTBEAT)
+-- Instead of running every frame, we use a slower check
+spawn(function()
+    while wait(2) do
+        pcall(function()
+            local character = player.Character
+            if not character then return end
+            
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid and humanoid.PlatformStand then
+                humanoid.PlatformStand = false
+            end
+        end)
+    end
 end)
 
 local player_service = game["Players"]
