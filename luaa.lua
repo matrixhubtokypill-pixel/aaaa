@@ -8,84 +8,45 @@ if not LPH_OBFUSCATED then
     LPH_OBFUSCATED = false
 end
 
+-- ===== SIMPLE WORKING ANTI-FLING =====
 local player = game.Players.LocalPlayer
 
-local function applyBypass()
+-- JUST BLOCK CHECKER_4 - NOTHING ELSE
+local remote = game.ReplicatedStorage:FindFirstChild("MainEvent")
+if remote then
+    local oldFire = remote.FireServer
+    remote.FireServer = function(...)
+        local args = {...}
+        if args[1] == "CHECKER_4" then
+            return
+        end
+        return oldFire(unpack(args))
+    end
+end
+
+-- KEEP CHARACTER STATE NORMAL
+local function keepAlive()
     pcall(function()
-        local character = player.Character
-        if not character then return end
+        local char = player.Character
+        if not char then return end
         
-        local rootPart = character:FindFirstChild("HumanoidRootPart")
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if not rootPart or not humanoid then return end
-        
-        -- 1. Block CHECKER_4 remote
-        local remote = game.ReplicatedStorage:FindFirstChild("MainEvent")
-        if remote then
-            remote.OnServerEvent:Connect(function(plr, ...)
-                local args = {...}
-                if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" or args[1] == "VELOCITY_CHECK" then
-                    return
-                end
-            end)
-            
-            local oldFire = remote.FireServer
-            remote.FireServer = function(...)
-                local args = {...}
-                if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" or args[1] == "VELOCITY_CHECK" then
-                    return
-                end
-                return oldFire(unpack(args))
-            end
-        end
-        
-        -- 2. Kill anti-fling scripts
-        for _, obj in pairs(game:GetDescendants()) do
-            if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript") then
-                local name = string.lower(obj.Name or "")
-                if string.find(name, "anti") or 
-                   string.find(name, "fling") or 
-                   string.find(name, "velocity") or
-                   string.find(name, "check") then
-                    obj.Disabled = true
-                    task.wait(0.05)
-                    obj:Destroy()
-                end
-            end
-        end
-        
-        -- 3. Remove anti-fling attachments
-        for _, child in pairs(rootPart:GetChildren()) do
-            if child:IsA("Attachment") or child:IsA("Weld") or child:IsA("Constraint") then
-                child:Destroy()
-            end
-        end
-        
-        -- 4. Reset humanoid state
-        if humanoid.PlatformStand then
-            humanoid.PlatformStand = false
-        end
-        
-        -- 5. Block ban remote
-        local banRemote = game.ReplicatedStorage:FindFirstChild("BanRemote")
-        if banRemote then
-            banRemote.OnServerEvent:Connect(function() return end)
-            banRemote.FireServer = function() return end
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum and hum.PlatformStand then
+            hum.PlatformStand = false
         end
     end)
 end
 
-applyBypass()
-
+-- CHECK EVERY 2 SECONDS
 spawn(function()
     while wait(2) do
-        applyBypass()
+        keepAlive()
     end
 end)
 
 player.CharacterAdded:Connect(function()
     task.wait(1)
-    applyBypass()
+    keepAlive()
 end)
 
 local player_service = game["Players"]
