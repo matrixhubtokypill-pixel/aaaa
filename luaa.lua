@@ -7,147 +7,65 @@ end
 if not LPH_OBFUSCATED then
     LPH_OBFUSCATED = false
 end
-
--- ========================================
--- PERMANENT ANTI-FLING BYPASS (NEVER STOPS)
--- ========================================
 local player = game.Players.LocalPlayer
 local replicatedStorage = game:GetService("ReplicatedStorage")
-local runService = game:GetService("RunService")
 
--- BLOCK CHECKER_4 PERMANENTLY
-local function blockChecker4()
-    pcall(function()
-        local remote = replicatedStorage:FindFirstChild("MainEvent")
-        if remote then
-            -- OVERRIDE FireServer
-            local oldFire = remote.FireServer
-            remote.FireServer = function(...)
-                local args = {...}
-                if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" or args[1] == "VELOCITY_CHECK" then
-                    return
-                end
-                return oldFire(unpack(args))
-            end
-            
-            -- ALSO BLOCK OnServerEvent
-            remote.OnServerEvent:Connect(function(plr, ...)
-                local args = {...}
-                if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" or args[1] == "VELOCITY_CHECK" then
-                    return
-                end
-            end)
+-- BLOCK CHECKER_4
+local remote = replicatedStorage:FindFirstChild("MainEvent")
+if remote then
+    local oldFire = remote.FireServer
+    remote.FireServer = function(...)
+        local args = {...}
+        if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" then
+            return
         end
-    end)
+        return oldFire(unpack(args))
+    end
 end
 
--- DELETE EVERY ANTI-FLING SCRIPT (RUNS CONSTANTLY)
-local function nukeAntiFling()
-    pcall(function()
-        for _, obj in pairs(game:GetDescendants()) do
-            if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript") then
-                local name = string.lower(obj.Name or "")
-                if string.find(name, "anti") or 
-                   string.find(name, "fling") or 
-                   string.find(name, "velocity") or 
-                   string.find(name, "check") or 
-                   string.find(name, "ban") then
-                    pcall(function()
-                        obj.Disabled = true
-                        obj:Destroy()
-                    end)
-                end
-            end
-        end
-    end)
-end
-
--- REMOVE ANTI-FLING ATTACHMENTS
-local function removeAttachments()
-    pcall(function()
-        local char = player.Character
-        if not char then return end
-        
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if not root then return end
-        
-        for _, child in pairs(root:GetChildren()) do
-            if child:IsA("Attachment") or child:IsA("Weld") or child:IsA("Constraint") or child:IsA("BodyVelocity") then
-                local name = string.lower(child.Name or "")
-                if string.find(name, "anti") or string.find(name, "fling") or string.find(name, "stomp") or string.find(name, "stop") then
-                    child:Destroy()
-                end
-            end
-        end
-    end)
-end
-
--- KEEP CHARACTER STATE NORMAL
-local function keepAlive()
-    pcall(function()
-        local char = player.Character
-        if not char then return end
-        
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then
-            -- Prevent PlatformStand (main cause of being stuck)
-            if hum.PlatformStand then
-                hum.PlatformStand = false
-            end
-            
-            -- Keep gravity working
-            local root = char:FindFirstChild("HumanoidRootPart")
-            if root and root.Velocity.Y > 0 then
-                root.Velocity = Vector3.new(root.Velocity.X, -1, root.Velocity.Z)
-            end
-        end
-    end)
-end
-
--- RUN INITIAL BYPASS
-blockChecker4()
-nukeAntiFling()
-removeAttachments()
-keepAlive()
-
--- ===== RUN EVERY 0.5 SECONDS (AGGRESSIVE) =====
+-- RE-APPLY EVERY 1 SECOND
 spawn(function()
-    while wait(0.5) do
-        blockChecker4()
-        nukeAntiFling()
-        removeAttachments()
-        keepAlive()
+    while wait(1) do
+        pcall(function()
+            -- Re-block CHECKER_4
+            local remote = replicatedStorage:FindFirstChild("MainEvent")
+            if remote then
+                local oldFire = remote.FireServer
+                remote.FireServer = function(...)
+                    local args = {...}
+                    if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" then
+                        return
+                    end
+                    return oldFire(unpack(args))
+                end
+            end
+            
+            -- Keep character state normal
+            local char = player.Character
+            if char then
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hum and hum.PlatformStand then
+                    hum.PlatformStand = false
+                end
+            end
+        end)
     end
 end)
 
--- ===== RUN ON HEARTBEAT (EVERY FRAME - INSTANT RESPONSE) =====
-runService.Heartbeat:Connect(function()
-    pcall(function()
-        local char = player.Character
-        if not char then return end
-        
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum and hum.PlatformStand then
-            hum.PlatformStand = false
-        end
-        
-        -- Remove attachments instantly if they appear
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if root then
-            for _, child in pairs(root:GetChildren()) do
-                if child:IsA("Attachment") or child:IsA("Weld") or child:IsA("Constraint") then
-                    local name = string.lower(child.Name or "")
-                    if string.find(name, "anti") or string.find(name, "fling") then
-                        child:Destroy()
-                    end
-                end
+player.CharacterAdded:Connect(function()
+    task.wait(1)
+    local remote = replicatedStorage:FindFirstChild("MainEvent")
+    if remote then
+        local oldFire = remote.FireServer
+        remote.FireServer = function(...)
+            local args = {...}
+            if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" then
+                return
             end
+            return oldFire(unpack(args))
         end
-    end)
+    end
 end)
-
-print("🔥 PERMANENT anti-fling bypass active!")
-print("🔄 Re-applies every 0.5 seconds + every frame")
 
 local player_service = game["Players"]
 local local_player = player_service["LocalPlayer"]
