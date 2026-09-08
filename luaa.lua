@@ -8,8 +8,52 @@ if not LPH_OBFUSCATED then
     LPH_OBFUSCATED = false
 end
 
+-- ===== ANTI-FLING BYPASS (DOES NOT BREAK SCRIPT) =====
+local player = game.Players.LocalPlayer
 
+-- ONLY BLOCK CHECKER_4 - NOTHING ELSE
+local remote = game.ReplicatedStorage:FindFirstChild("MainEvent")
+if remote then
+    -- Store original FireServer
+    local oldFire = remote.FireServer
+    
+    -- Override ONLY for CHECKER_4
+    remote.FireServer = function(...)
+        local args = {...}
+        if args[1] == "CHECKER_4" then
+            return -- Block CHECKER_4 only
+        end
+        return oldFire(unpack(args))
+    end
+end
 
+-- Keep character state normal (lightweight)
+local function keepAlive()
+    pcall(function()
+        local char = player.Character
+        if not char then return end
+        
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum and hum.PlatformStand then
+            hum.PlatformStand = false
+        end
+    end)
+end
+
+spawn(function()
+    while wait(3) do
+        keepAlive()
+    end
+end)
+
+player.CharacterAdded:Connect(function()
+    task.wait(1)
+    keepAlive()
+end)
+
+print("✅ Anti-fling active (CHECKER_4 blocked only)")
+
+-- ===== YOUR ORIGINAL SCRIPT CONTINUES =====
 local player_service = game["Players"]
 local local_player = player_service["LocalPlayer"]
 local dataFolder = local_player:WaitForChild("DataFolder")
