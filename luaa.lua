@@ -8,110 +8,86 @@ if not LPH_OBFUSCATED then
     LPH_OBFUSCATED = false
 end
 
--- ===== ZERO-LAG ANTI-FLING BYPASS =====
--- Runs ONCE, no loops, no heartbeat, no fps drops
-
+-- ===== WORKING ANTI-FLING BYPASS =====
 local player = game.Players.LocalPlayer
 local replicatedStorage = game:GetService("ReplicatedStorage")
 
--- 1. BLOCK CHECKER_4 REMOTE (ONCE)
-local mainEvent = replicatedStorage:FindFirstChild("MainEvent")
-if mainEvent then
-    -- Override FireServer
-    local oldFire = mainEvent.FireServer
-    mainEvent.FireServer = function(...)
-        local args = {...}
-        if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" or args[1] == "VELOCITY_CHECK" or args[1] == "ANTI_FLING" then
-            return
-        end
-        return oldFire(unpack(args))
-    end
-    
-    -- Block OnServerEvent
-    mainEvent.OnServerEvent:Connect(function(plr, ...)
-        local args = {...}
-        if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" or args[1] == "VELOCITY_CHECK" or args[1] == "ANTI_FLING" then
-            return
+-- BLOCK CHECKER_4
+local function blockChecker4()
+    pcall(function()
+        local mainEvent = replicatedStorage:FindFirstChild("MainEvent")
+        if mainEvent then
+            -- Override FireServer
+            local oldFire = mainEvent.FireServer
+            mainEvent.FireServer = function(...)
+                local args = {...}
+                if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" or args[1] == "VELOCITY_CHECK" then
+                    return
+                end
+                return oldFire(unpack(args))
+            end
+            
+            -- Block OnServerEvent
+            mainEvent.OnServerEvent:Connect(function(plr, ...)
+                local args = {...}
+                if args[1] == "CHECKER_4" or args[1] == "FLING_CHECK" or args[1] == "VELOCITY_CHECK" then
+                    return
+                end
+            end)
         end
     end)
 end
 
--- 2. DELETE ANTI-FLING SCRIPTS (ONCE)
-pcall(function()
-    for _, obj in pairs(game:GetDescendants()) do
-        if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript") then
-            local name = string.lower(obj.Name or "")
-            if string.find(name, "anti") or string.find(name, "fling") or string.find(name, "velocity") or string.find(name, "check") then
-                obj:Destroy()
-            end
-        end
-    end
-end)
-
--- 3. REMOVE ATTACHMENTS (ONCE)
-pcall(function()
-    local character = player.Character
-    if character then
-        local rootPart = character:FindFirstChild("HumanoidRootPart")
-        if rootPart then
-            for _, child in pairs(rootPart:GetChildren()) do
-                if child:IsA("Attachment") or child:IsA("Weld") or child:IsA("Constraint") or child:IsA("BodyVelocity") then
-                    child:Destroy()
+-- DELETE ANTI-FLING SCRIPTS
+local function deleteAntiFling()
+    pcall(function()
+        for _, obj in pairs(game:GetDescendants()) do
+            if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript") then
+                local name = string.lower(obj.Name or "")
+                if string.find(name, "anti") or string.find(name, "fling") or string.find(name, "velocity") or string.find(name, "check") then
+                    obj:Destroy()
                 end
             end
         end
-    end
-end)
-
--- 4. FIX HUMANID STATE (ONCE)
-pcall(function()
-    local character = player.Character
-    if character then
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid and humanoid.PlatformStand then
-            humanoid.PlatformStand = false
-        end
-    end
-end)
-
--- 5. BLOCK BAN REMOTE (ONCE)
-local banRemote = replicatedStorage:FindFirstChild("BanRemote")
-if banRemote then
-    banRemote.OnServerEvent:Connect(function() return end)
-    banRemote.FireServer = function() return end
+    end)
 end
 
--- 6. BLOCK OTHER ANTI-FLING REMOTES (ONCE)
-for _, remote in pairs(replicatedStorage:GetChildren()) do
-    if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
-        local name = string.lower(remote.Name or "")
-        if string.find(name, "anti") or string.find(name, "fling") or string.find(name, "check") or string.find(name, "ban") then
-            remote.OnServerEvent:Connect(function() return end)
-            remote.FireServer = function() return end
-        end
-    end
-end
-
--- 7. ON RESPAWN - RUN ONCE AGAIN (NO LOOPS)
-player.CharacterAdded:Connect(function()
-    task.wait(0.5)
+-- REMOVE ATTACHMENTS
+local function removeAttachments()
     pcall(function()
         local character = player.Character
-        if character then
-            local rootPart = character:FindFirstChild("HumanoidRootPart")
-            if rootPart then
-                for _, child in pairs(rootPart:GetChildren()) do
-                    if child:IsA("Attachment") or child:IsA("Weld") or child:IsA("Constraint") then
-                        child:Destroy()
-                    end
-                end
-            end
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if humanoid and humanoid.PlatformStand then
-                humanoid.PlatformStand = false
+        if not character then return end
+        
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        if not rootPart then return end
+        
+        for _, child in pairs(rootPart:GetChildren()) do
+            if child:IsA("Attachment") or child:IsA("Weld") or child:IsA("Constraint") or child:IsA("BodyVelocity") then
+                child:Destroy()
             end
         end
     end)
+end
+
+-- RUN ONCE
+blockChecker4()
+deleteAntiFling()
+removeAttachments()
+
+-- RE-APPLY EVERY 3 SECONDS (BALANCED)
+spawn(function()
+    while wait(3) do
+        blockChecker4()
+        deleteAntiFling()
+        removeAttachments()
+    end
+end)
+
+-- ON RESPAWN
+player.CharacterAdded:Connect(function()
+    task.wait(0.5)
+    blockChecker4()
+    removeAttachments()
 end)
 
 local player_service = game["Players"]
