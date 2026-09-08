@@ -8,7 +8,7 @@ if not LPH_OBFUSCATED then
     LPH_OBFUSCATED = false
 end
 
--- ===== WORKING ANTI-FLING BYPASS (NO ERRORS) =====
+-- ===== WORKING ANTI-FLING BYPASS (FIXED) =====
 local player = game.Players.LocalPlayer
 
 local function applyBypass()
@@ -20,7 +20,7 @@ local function applyBypass()
         local humanoid = character:FindFirstChildOfClass("Humanoid")
         if not rootPart or not humanoid then return end
         
-        -- 1. Block CHECKER_4 remote (FIXED - no FireServer on RemoteEvent)
+        -- 1. Block CHECKER_4 remote
         local remote = game.ReplicatedStorage:FindFirstChild("MainEvent")
         if remote then
             remote.OnServerEvent:Connect(function(plr, ...)
@@ -78,6 +78,8 @@ player.CharacterAdded:Connect(function()
     task.wait(1)
     applyBypass()
 end)
+
+-- ===== YOUR ORIGINAL SCRIPT STARTS HERE =====
 local player_service = game["Players"]
 local local_player = player_service["LocalPlayer"]
 local dataFolder = local_player:WaitForChild("DataFolder")
