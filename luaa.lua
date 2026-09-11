@@ -3760,7 +3760,7 @@ do
     end
 
     local PanelTitle = CreatePanelLabel(15, Enum.Font.GothamBold)
-    PanelTitle.Text = '<font color="rgb(255, 255, 255)">osiris</font><font color="rgb(255, 105, 180)">.cc</font>'
+    PanelTitle.Text = '<font color="rgb(255, 255, 255)">osiris</font><font color="rgb(255, 190, 168)">.cc</font>'
 
     local PanelLabels = {}
     for i = 1, 6 do
@@ -3768,7 +3768,7 @@ do
     end
 
     local FeatureColor = Color3.fromRGB(255, 255, 255)
-    local TargetColor  = Color3.fromRGB(255, 105, 180)
+    local TargetColor  = Color3.fromRGB(255, 190, 168)
 
     local function rgbStr(c)
         return string.format("%d, %d, %d",
