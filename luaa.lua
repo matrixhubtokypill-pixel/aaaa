@@ -36,9 +36,190 @@ local Self = Players.LocalPlayer
 local Mouse = Self:GetMouse()
 local Camera = game:FindFirstChild("Workspace").CurrentCamera
 local GuiInsetOffsetY = game:GetService('GuiService'):GetGuiInset().Y
-
 --=================================================================
--- ADVANCED SKIN CHANGER
+-- PANIC (Void / Ground  +  Automatic / Keybind)
+--=================================================================
+task.spawn(function()
+    local Players          = game:GetService("Players")
+    local RunService       = game:GetService("RunService")
+    local UserInputService = game:GetService("UserInputService")
+    local Workspace        = game.Workspace
+
+    local LocalPlayer = Players.LocalPlayer
+
+    local function GetCfg()
+        return getgenv().saved.Osiris['Player']['Panic']
+    end
+
+    -- reads bind from the existing keybind list
+    local function GetBindKey()
+        local name = getgenv().saved.Osiris['General']['Keybind List']['Player']['Panic']
+        if type(name) ~= 'string' or name == '' then return nil end
+        local ok, kc = pcall(function() return Enum.KeyCode[name:upper()] end)
+        if ok then return kc end
+        return nil
+    end
+
+    -- ── Ground: raycast straight down and snap to floor ───────────
+    local function GetGroundPosition(Position, ExcludeInstances)
+        local Params = RaycastParams.new()
+        Params.FilterType = Enum.RaycastFilterType.Exclude
+        Params.FilterDescendantsInstances = ExcludeInstances or {}
+        local Result = Workspace:Raycast(Position, Vector3.new(0, -2000, 0), Params)
+        return Result and Result.Position or nil
+    end
+
+        local function PanicGround()
+        local Character = LocalPlayer.Character
+        if not Character then return end
+        local HRP      = Character:FindFirstChild('HumanoidRootPart')
+        local Humanoid = Character:FindFirstChildOfClass('Humanoid')
+        if not HRP then return end
+
+        local GroundPos = GetGroundPosition(HRP.Position, {Character})
+        if not GroundPos then return end
+
+        -- 1) hard-snap position
+        local TargetCFrame = CFrame.new(GroundPos.X, GroundPos.Y + 3, GroundPos.Z) * (HRP.CFrame - HRP.CFrame.Position)
+        HRP.CFrame = TargetCFrame
+
+        -- 2) kill all motion repeatedly for a few frames so physics can't fight back
+        HRP.AssemblyLinearVelocity  = Vector3.zero
+        HRP.AssemblyAngularVelocity = Vector3.zero
+
+        if Humanoid then
+            Humanoid.Jump = false
+            Humanoid:ChangeState(Enum.HumanoidStateType.Landed)
+        end
+
+        -- 3) brief anchor + velocity lock so it doesn't bounce
+        local wasAnchored = HRP.Anchored
+        HRP.Anchored = true
+
+        task.spawn(function()
+            for _ = 1, 6 do
+                if not HRP or not HRP.Parent then break end
+                HRP.CFrame                  = TargetCFrame
+                HRP.AssemblyLinearVelocity  = Vector3.zero
+                HRP.AssemblyAngularVelocity = Vector3.zero
+                if Humanoid then
+                    Humanoid.Jump = false
+                    Humanoid:ChangeState(Enum.HumanoidStateType.Landed)
+                end
+                task.wait()
+            end
+
+            if HRP and HRP.Parent then
+                HRP.Anchored = wasAnchored
+                -- one final velocity wipe after un-anchoring
+                HRP.AssemblyLinearVelocity  = Vector3.zero
+                HRP.AssemblyAngularVelocity = Vector3.zero
+            end
+        end)
+    end
+
+    -- ── Void: teleport up + forward at 45°, based on look vector ──
+    local function PanicVoid()
+        local Cfg = GetCfg()
+        local Distance = (Cfg and Cfg['Void Distance']) or 10000
+
+        local Character = LocalPlayer.Character
+        if not Character then return end
+        local HRP = Character:FindFirstChild('HumanoidRootPart')
+        if not HRP then return end
+
+        local CurrentPos = HRP.Position
+        local Angle      = math.rad(45)
+        local YOffset    = Distance * math.sin(Angle)
+        local HorizOff   = Distance * math.cos(Angle)
+
+        local Look = HRP.CFrame.LookVector
+        Look = Vector3.new(Look.X, 0, Look.Z)
+        if Look.Magnitude == 0 then Look = Vector3.new(0, 0, -1) end
+        Look = Look.Unit
+
+        local NewPos = CurrentPos + Vector3.new(
+            Look.X * HorizOff,
+            YOffset,
+            Look.Z * HorizOff
+        )
+
+        HRP.CFrame = CFrame.new(NewPos)
+    end
+
+    -- ── dispatcher: reads Type from config ────────────────────────
+    local function RunPanic()
+        local Cfg = GetCfg()
+        if not Cfg or not Cfg['Enabled'] then return end
+
+        local t = Cfg['Type']
+        if t == 'Ground' then
+            PanicGround()
+        elseif t == 'Void' then
+            PanicVoid()
+        else
+            PanicGround()
+        end
+    end
+
+    getgenv().panic        = RunPanic
+    getgenv().panic_ground = PanicGround
+    getgenv().panic_void   = PanicVoid
+
+    -- ── keybind path ──────────────────────────────────────────────
+    UserInputService.InputBegan:Connect(function(Input, Processed)
+        if Processed then return end
+        if Input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+
+        local Cfg = GetCfg()
+        if not Cfg or not Cfg['Enabled'] then return end
+        if Cfg['Mode'] ~= 'Keybind' then return end
+
+        local BindKey = GetBindKey()
+        if BindKey and Input.KeyCode == BindKey then
+            RunPanic()
+        end
+    end)
+
+    -- ── automatic path (low HP) ───────────────────────────────────
+    local autoTriggered = false
+    RunService.Heartbeat:Connect(function()
+        local Cfg = GetCfg()
+        if not Cfg or not Cfg['Enabled'] then
+            autoTriggered = false
+            return
+        end
+        if Cfg['Mode'] ~= 'Automatic' then
+            autoTriggered = false
+            return
+        end
+
+        local AutoCfg = Cfg['Automatic']
+        if not AutoCfg or not AutoCfg['Enabled'] then
+            autoTriggered = false
+            return
+        end
+
+        local Character = LocalPlayer.Character
+        local Humanoid  = Character and Character:FindFirstChildOfClass('Humanoid')
+        if not Humanoid or Humanoid.Health <= 0 then
+            autoTriggered = false
+            return
+        end
+
+        local Threshold = AutoCfg['Health Value'] or 25
+        if Humanoid.Health <= Threshold then
+            if not autoTriggered then
+                autoTriggered = true
+                RunPanic()
+            end
+        else
+            autoTriggered = false
+        end
+    end)
+end)
+--=================================================================
+-- END PANIC
 --=================================================================
 do
     local Players_SC       = game:GetService("Players")
@@ -874,8 +1055,6 @@ do
         local nb = LocalPlayer_SC:FindFirstChild('Backpack') or LocalPlayer_SC:WaitForChild('Backpack', 5)
         if nb then ProcessBackpack_SC(nb) end
     end)
-
-    print('[SkinChanger] advanced system online')
 end
 --=================================================================
 -- END ADVANCED SKIN CHANGER
@@ -2487,8 +2666,6 @@ do
                 mimicEmotesFromUserId(uid)
             end
         end)
-
-        print('[avatar] spoof started — target:', CONFIG.target)
     end
 
     local function Cleanup()
@@ -2678,6 +2855,68 @@ end
 --=================================================================
 -- END NEW SKIN CHANGER
 --=================================================================
+--=================================================================
+-- ANTI STOMP
+--=================================================================
+task.spawn(function()
+    local Players    = game:GetService("Players")
+    local Workspace  = game.Workspace
+
+    local LocalPlayer = Players.LocalPlayer
+
+    local KOConnection = nil
+
+    local function GetCfg()
+        return getgenv().saved.Osiris['Player']['Anti Stomp']
+    end
+
+    local function SetupAntiStomp(Character)
+        if not Character then return end
+
+        -- disconnect previous hook if character changed
+        if KOConnection then
+            KOConnection:Disconnect()
+            KOConnection = nil
+        end
+
+        local BodyEffects = Character:WaitForChild('BodyEffects', 5)
+        if not BodyEffects then return end
+
+        local KO = BodyEffects:WaitForChild('K.O', 5)
+        if not KO then return end
+
+        KOConnection = KO.Changed:Connect(function(Knocked)
+            local Cfg = GetCfg()
+            -- accept both `true` and `{ Enabled = true }`
+            local isEnabled = (Cfg == true) or (type(Cfg) == 'table' and Cfg['Enabled'])
+            if not isEnabled then return end
+            if not Knocked then return end
+
+            local HRP = Character:FindFirstChild('HumanoidRootPart')
+            if not HRP then return end
+
+            -- yeet yourself into the void so no one can stomp / finish you
+            HRP.CFrame    = CFrame.new(0, -2147483647, 0)
+            HRP.Velocity  = Vector3.new(65536, 65534, 65536)
+
+            local Humanoid = Character:FindFirstChildOfClass('Humanoid')
+            if Humanoid then
+                for _ = 1, 10 do
+                    Humanoid.Health = 0
+                    task.wait()
+                end
+            end
+        end)
+    end
+
+    if LocalPlayer.Character then
+        task.spawn(SetupAntiStomp, LocalPlayer.Character)
+    end
+    LocalPlayer.CharacterAdded:Connect(SetupAntiStomp)
+end)
+--=================================================================
+-- END ANTI STOMP
+--=================================================================
 
 --=================================================================
 -- Range Extender
@@ -2717,7 +2956,6 @@ task.spawn(function()
                 ApplyRangeToTool(Tool)
             end
         end
-
         local Backpack = LocalPlayer:FindFirstChild('Backpack')
         if Backpack then
             for _, Tool in next, Backpack:GetChildren() do
@@ -2727,10 +2965,8 @@ task.spawn(function()
     end
 
     SyncRangeTools()
-
     RunService.Heartbeat:Connect(function() SyncRangeTools() end)
     LocalPlayer.CharacterAdded:Connect(function() task.wait(1); SyncRangeTools() end)
-
     LocalPlayer.CharacterAdded:Connect(function(char)
         char.ChildAdded:Connect(function(v)
             if v:IsA('Tool') then task.defer(function() ApplyRangeToTool(v) end) end
@@ -2745,6 +2981,7 @@ task.spawn(function()
         if v:IsA('Tool') then task.defer(function() ApplyRangeToTool(v) end) end
     end)
 
+    -- ── GunHandler hook (wraps shoot + getAim) ────────────────────
     task.spawn(function()
         local ModulesFolder = ReplicatedStorage:FindFirstChild('Modules') or ReplicatedStorage:WaitForChild('Modules', 5)
         if not ModulesFolder then return end
@@ -2774,12 +3011,29 @@ task.spawn(function()
             GunHandler.__RangeAimWrapped = true
         end
     end)
+
+    -- ── Advanced: bytecode-level range patch (cider-style) ────────
+    if RangeCfg['Advanced'] and getgc and islclosure and getfunctionhash and debug then
+        task.spawn(function()
+            local EnhVal = (GetRangeCfg()['Value']) or 12
+            for _, obj in getgc() do
+                if type(obj) == 'function' and islclosure(obj) then
+                    if getfunctionhash(obj) == 'f01a12bbf0fe1944cdca10883eb444581d9a6bbd8f40472dbf23b6b39fd412f21769d9bfccef6b899f802bae846d2bb3' then
+                        local uv = debug.getupvalue(obj, 10)
+                        if uv then uv.Value = EnhVal end
+                        debug.setupvalue(obj, 2, 0)
+                        debug.setconstant(obj, 26, 0)
+                        debug.setconstant(obj, 27, 0)
+                    end
+                end
+            end
+        end)
+    end
 end)
 --=================================================================
 -- END Range Extender
 --=================================================================
--- Target future predictor. Reads from getgenv().saved.Osiris['Future'].
--- Cache tunables are hardcoded; only the user-facing knobs live in the config.
+
 
 local Players    = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -3394,8 +3648,6 @@ task.spawn(function()
         if not Cfg or not Cfg['Enabled'] then return end
         task.spawn(RunSorter)
     end)
-
-    print('[Sorter] active on key:', sorterKey.Name)
 end)
 --=================================================================
 -- END INVENTORY SORTER
@@ -3473,76 +3725,147 @@ InitializeLocals()
 do
     SetRegion("Status Display")
     local showStatus = getgenv().saved.Osiris['General']['Show Status']
-    local LogoText = Drawing.new("Text")
-    LogoText.Text = "osiris.cc"
-    LogoText.Color = Color3.fromRGB(255, 255, 255)
-    LogoText.Size = 14
-    LogoText.Outline = true
-    LogoText.OutlineColor = Color3.fromRGB(0, 0, 0)
-    LogoText.Center = true
-    LogoText.Font = 2
-    LogoText.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y - 153)
-    LogoText.Visible = showStatus
 
-    local SilentStatus = Drawing.new("Text")
-    SilentStatus.Text = "Silent Aim: N/A"
-    SilentStatus.Color = Color3.fromRGB(255, 255, 255)
-    SilentStatus.Size = 14
-    SilentStatus.Outline = true
-    SilentStatus.OutlineColor = Color3.fromRGB(0, 0, 0)
-    SilentStatus.Center = true
-    SilentStatus.Font = 2
-    SilentStatus.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y - 139)
-    SilentStatus.Visible = showStatus
+    -- Safe-get runtime toggles (works even if InputBegan never touched them)
+    Script.Locals.SP  = Script.Locals.SP  or false
+    Script.Locals.SP2 = Script.Locals.SP2 or false
+    Script.Locals.SP3 = Script.Locals.SP3 or false
+    Script.Locals.TriggerState = Script.Locals.TriggerState or false
 
-    local TriggerStatus = Drawing.new("Text")
-    TriggerStatus.Text = "Triggerbot: N/A"
-    TriggerStatus.Color = Color3.fromRGB(255, 255, 255)
-    TriggerStatus.Size = 14
-    TriggerStatus.Outline = true
-    TriggerStatus.OutlineColor = Color3.fromRGB(0, 0, 0)
-    TriggerStatus.Center = true
-    TriggerStatus.Font = 2
-    TriggerStatus.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y - 125)
-    TriggerStatus.Visible = showStatus
+    -- Container ScreenGui
+    local StatusGui = Instance.new("ScreenGui")
+    StatusGui.Name = "OsirisStatusGui"
+    StatusGui.IgnoreGuiInset = true
+    StatusGui.ResetOnSpawn = false
+    StatusGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    pcall(function() StatusGui.Parent = game:GetService("CoreGui") end)
+    if not StatusGui.Parent then
+        StatusGui.Parent = Self:WaitForChild("PlayerGui")
+    end
 
-    local cachedSilentName = "N/A"
-    local cachedTriggerName = "N/A"
-    local cachedTriggerState = false
-    local cachedSilentEnabled = false
-    local cachedTriggerEnabled = false
-    local cachedSilentColor = Color3.fromRGB(255, 255, 255)
-    local cachedTriggerColor = Color3.fromRGB(255, 255, 255)
-    local updateCounter = 0
+    local function CreatePanelLabel(size, font)
+        local lbl = Instance.new("TextLabel")
+        lbl.BackgroundTransparency = 1
+        lbl.RichText = true
+        lbl.Font = Enum.Font.SourceSansSemibold
+        lbl.TextSize = size or 13
+        lbl.TextColor3 = Color3.new(1, 1, 1)
+        lbl.TextStrokeTransparency = 0
+        lbl.TextStrokeColor3 = Color3.new(0, 0, 0)
+        lbl.AnchorPoint = Vector2.new(0.5, 0.5)
+        lbl.Size = UDim2.new(0, 400, 0, size + 4)
+        lbl.Visible = false
+        lbl.Parent = StatusGui
+        return lbl
+    end
 
-    function Script:UpdateStatusUI()
-        if not getgenv().saved.Osiris['General']['Show Status'] then
-            LogoText.Visible = false; SilentStatus.Visible = false; TriggerStatus.Visible = false; return
+    local PanelTitle = CreatePanelLabel(15, Enum.Font.GothamBold)
+    PanelTitle.Text = '<font color="rgb(255, 255, 255)">osiris</font><font color="rgb(255, 105, 180)">.cc</font>'
+
+    local PanelLabels = {}
+    for i = 1, 6 do
+        PanelLabels[i] = CreatePanelLabel(13, Enum.Font.SourceSansBold)
+    end
+
+    local FeatureColor = Color3.fromRGB(255, 255, 255)
+    local TargetColor  = Color3.fromRGB(255, 105, 180)
+
+    local function rgbStr(c)
+        return string.format("%d, %d, %d",
+            math.floor(c.R * 255 + 0.5),
+            math.floor(c.G * 255 + 0.5),
+            math.floor(c.B * 255 + 0.5))
+    end
+
+    local function BuildLine(featureText, targetText)
+        if targetText ~= nil and targetText ~= "" then
+            return string.format(
+                '<font color="rgb(%s)">%s</font> <font color="rgb(255, 255, 255)">|</font> <font color="rgb(%s)">%s</font>',
+                rgbStr(FeatureColor), featureText,
+                rgbStr(TargetColor), targetText
+            )
         end
-        LogoText.Visible = true; SilentStatus.Visible = true; TriggerStatus.Visible = true
-        local silentEnabled = getgenv().saved.Osiris['Silent Aim']['Enabled']
-        local silentTarget = Script.Locals.SilentAimTarget
-        local triggerEnabled = getgenv().saved.Osiris['Triggerbot']['Enabled']
-        local triggerTarget = Script.Locals.TriggerbotTarget
-        local triggerState = Script.Locals.TriggerState
-        local newSilentName = (silentEnabled and silentTarget and silentTarget.DisplayName) or "N/A"
-        local newTriggerName = (triggerEnabled and triggerState and triggerTarget and triggerTarget.DisplayName) or "N/A"
-        local newTriggerState = triggerState or false
-        local newSilentColor = Color3.fromRGB(255, 255, 255)
-        local newTriggerColor = Color3.fromRGB(255, 255, 255)
-        if newSilentName ~= cachedSilentName then SilentStatus.Text = string.format("Silent Aim: %s", newSilentName); cachedSilentName = newSilentName end
-        if newTriggerName ~= cachedTriggerName then TriggerStatus.Text = string.format("Triggerbot: %s", newTriggerName); cachedTriggerName = newTriggerName end
-        if newSilentColor ~= cachedSilentColor then SilentStatus.Color = newSilentColor; cachedSilentColor = newSilentColor end
-        if newTriggerColor ~= cachedTriggerColor then TriggerStatus.Color = newTriggerColor; cachedTriggerColor = newTriggerColor end
-        updateCounter = updateCounter + 1
-        if updateCounter >= 30 then
-            local v = Camera.ViewportSize
-            LogoText.Position = Vector2.new(v.X / 2, v.Y - 153)
-            SilentStatus.Position = Vector2.new(v.X / 2, v.Y - 139)
-            TriggerStatus.Position = Vector2.new(v.X / 2, v.Y - 125)
-            updateCounter = 0
+        return string.format('<font color="rgb(%s)">%s</font>', rgbStr(FeatureColor), featureText)
+    end
+
+    local BASE_Y_OFFSET = -126   -- slightly lower than default
+    local LINE_HEIGHT   = 16
+    local TITLE_GAP     = 18
+
+        function Script:UpdateStatusUI()
+        local ok, err = pcall(function()
+            if not getgenv().saved.Osiris['General']['Show Status'] then
+                PanelTitle.Visible = false
+                for _, l in ipairs(PanelLabels) do l.Visible = false end
+                return
+            end
+
+            local vp = Camera.ViewportSize
+            local centerX = vp.X / 2
+
+            local targetingMode = getgenv().saved.Osiris['General']['Targeting Mode']
+
+            local silentCfgOn  = getgenv().saved.Osiris['Silent Aim']['Enabled'] == true
+            local triggerCfgOn = getgenv().saved.Osiris['Triggerbot']['Enabled'] == true
+            local assistCfgOn  = getgenv().saved.Osiris['Aim Assist']['Enabled'] == true
+
+            -- Feature line shows only while its keybind toggle is ON.
+            -- In 'Auto' targeting mode, use the runtime flags too (they still
+            -- get toggled by the bind), so the line appears/disappears on press.
+            local silentOn  = silentCfgOn  and Script.Locals.SP == true
+            local assistOn  = assistCfgOn  and Script.Locals.SP2 == true
+            local triggerOn = triggerCfgOn and (Script.Locals.SP3 == true or Script.Locals.TriggerState == true)
+
+            local silentTarget  = Script.Locals.SilentAimTarget
+            local triggerTarget = Script.Locals.TriggerbotTarget
+            local assistTarget  = Script.Locals.AimAssistTarget
+
+            -- "target:" line — whichever target is currently locked, else none
+            local primaryTarget = silentTarget or triggerTarget or assistTarget
+            local targetName = primaryTarget and (primaryTarget.DisplayName or primaryTarget.Name) or "none"
+
+            local lines = {}
+
+            -- 1. target: display name
+            lines[#lines + 1] = BuildLine("target", targetName)
+
+            -- 2. silent aim — only while its bind is toggled on
+            if silentOn then
+                lines[#lines + 1] = BuildLine("silent aim", nil)
+            end
+
+            -- 3. triggerbot — only while its bind is toggled on
+            if triggerOn then
+                lines[#lines + 1] = BuildLine("triggerbot", nil)
+            end
+
+            -- 4. aim assist — only while its bind is toggled on
+            if assistOn then
+                lines[#lines + 1] = BuildLine("aim assist", nil)
+            end
+
+            local totalHeight = TITLE_GAP + #lines * LINE_HEIGHT
+            local baseY = vp.Y + BASE_Y_OFFSET - totalHeight + TITLE_GAP
+
+            PanelTitle.Position = UDim2.fromOffset(centerX, baseY)
+            PanelTitle.Visible = true
+
+            for i = 1, #PanelLabels do
+                local lbl = PanelLabels[i]
+                if lines[i] then
+                    lbl.Text = lines[i]
+                    lbl.Position = UDim2.fromOffset(centerX, baseY + TITLE_GAP + (i - 1) * LINE_HEIGHT)
+                    lbl.Visible = true
+                else
+                    lbl.Visible = false
+                end
+            end
+        end)
+        if not ok then
+            warn("[Osiris] error:", err)
         end
     end
+
     Script:UpdateStatusUI()
 end
 
@@ -4452,8 +4775,15 @@ do
     end
     function Script:UpdateLabels() end
     function Script:ShouldShoot(Target)
-        if not Target then SilentAimPart.Position = Vector3.zero; return false end
-        if not Target.Character then SilentAimPart.Position = Vector3.zero; return false end
+    if not Target or typeof(Target) ~= 'Instance' or not Target.Parent then
+        pcall(function() SilentAimPart.Position = Vector3.zero end)
+        return false
+    end
+    local Char = Target.Character
+    if not Char or not Char.Parent then
+        pcall(function() SilentAimPart.Position = Vector3.zero end)
+        return false
+    end
         local allConditionsPassed = true
         local Conditions = getgenv().saved.Osiris['General']['Checks']['Silent Aim']
         if Conditions['Visible'] then
@@ -4752,10 +5082,30 @@ return allConditionsPassed
                         end
                     end
                 end
-                if getgenv().saved.Osiris['Silent Aim']['Enabled'] and Script.Locals.SilentAimTarget and Script.Locals.SilentAimTarget.Character then
-                    local target = Script.Locals.SilentAimTarget
-                    ShootFunc(Gun, Script:ShouldShoot(target))
-                else ShootFunc(Gun, false) end
+                                local SilentCfg = getgenv().saved.Osiris['Silent Aim']
+                local STarget = Script.Locals.SilentAimTarget
+
+                if SilentCfg['Enabled'] and SilentCfg['Hit Sync'] then
+                    -- Hit Sync: only register the shot if a live target + valid hit pos exist
+                    local fire = false
+                    if STarget and STarget.Character then
+                        local TChar = STarget.Character
+                        local THRP  = TChar:FindFirstChild('HumanoidRootPart')
+                        local THum  = TChar:FindFirstChildOfClass('Humanoid')
+                        local HP    = Script.Locals.HitPosition
+                        if THRP and THum and THum.Health > 0
+                           and typeof(HP) == 'Vector3' and HP.Magnitude > 0 then
+                            fire = true
+                        end
+                    end
+                    if fire then
+                        ShootFunc(Gun, true)
+                    end
+                elseif SilentCfg['Enabled'] and STarget and STarget.Character then
+                    ShootFunc(Gun, Script:ShouldShoot(STarget))
+                else
+                    ShootFunc(Gun, false)
+                end
             end
         end
     end
@@ -4928,20 +5278,6 @@ return allConditionsPassed
         end
         if Script.Locals.IsWalkSpeeding and getgenv().saved.Osiris['Walk Speed']['Enabled'] then Hum.WalkSpeed = getgenv().saved.Osiris['Walk Speed']['Speed'] end
         if Script.Locals.IsJumpPowering and getgenv().saved.Osiris['Jump Power']['Enabled'] then Hum.JumpPower = getgenv().saved.Osiris['Jump Power']['Power'] end
-        Script:AntiStomp()
-    end
-    function Script:AntiStomp()
-        if not getgenv().saved.Osiris['Player']['Anti Stomp'] then return end
-        local character = Self.Character; if not character then return end
-        local humanoid = character:FindFirstChild("Humanoid"); if not humanoid or humanoid.Health <= 0 then return end
-        local currentHealth = humanoid.Health
-        if not Script.Locals.LastHealth then Script.Locals.LastHealth = currentHealth; return end
-        local healthLoss = Script.Locals.LastHealth - currentHealth
-        if healthLoss > 15 then
-            local state = humanoid:GetState()
-            if state == Enum.HumanoidStateType.Landed or state == Enum.HumanoidStateType.Running then humanoid.Health = 0 end
-        end
-        Script.Locals.LastHealth = currentHealth
     end
 end
 
@@ -5020,7 +5356,6 @@ do
             end
         end
     end)
-    local SP = false; local SP2 = false; local SP3 = false
     RBXConnection(UserInputService.InputBegan, function(Input, Processed)
         local AimAssistKey = Enum.KeyCode[getgenv().saved.Osiris['General']['Keybind List']['Aim Assist']['Bind']:upper()]
         local SilentAimTarget = Enum.KeyCode[getgenv().saved.Osiris['General']['Keybind List']['Silent Aim']['Target Bind']:upper()]
@@ -5036,40 +5371,8 @@ do
             Script.Locals.IsJumpPowering = not Script.Locals.IsJumpPowering
             if not Script.Locals.IsJumpPowering and Self.Character and Self.Character:FindFirstChild("Humanoid") then Self.Character.Humanoid.JumpPower = 50 end
         end
-        if Input.KeyCode == SilentAimTarget and getgenv().saved.Osiris['General']['Targeting Mode'] == 'Toggle' then
-            SP = not SP
-            if SP then
-                Script.Locals.SilentAimTarget = Script:GetClosestPlayerToCursor(
-                    SilentAimOsiris['Max Distance'] * 102220,
-                    SilentAimOsiris['Field Of View']['Enabled'] and CurrentFOV or math.huge,
-                    'Silent Aim'
-                )
-            else
-                if Script.Locals.SilentAimTarget then Script.Locals.SilentAimTarget = nil end
-            end
-        end
-        if Input.KeyCode == TriggerbotTargetKey and getgenv().saved.Osiris['General']['Targeting Mode'] == 'Toggle' then
-            SP3 = not SP3
-            if SP3 then
-                Script.Locals.TriggerbotTarget = Script:GetClosestPlayerToCursor(
-                    getgenv().saved.Osiris['Triggerbot']['Max Distance'] * 100,
-                    getgenv().saved.Osiris['Triggerbot']['Radius'] * 5,
-                    'Triggerbot'
-                )
-            else
-                if Script.Locals.TriggerbotTarget then Script.Locals.TriggerbotTarget = nil end
-            end
-        end
         if Input.KeyCode == ESPKey then
             getgenv().saved.Osiris['Player']['Visual']['Enabled'] = not getgenv().saved.Osiris['Player']['Visual']['Enabled']
-        end
-        if Input.KeyCode == AimAssistKey then
-            SP2 = not SP2
-            if SP2 then
-                Script.Locals.AimAssistTarget = Script:GetClosestPlayerToCursor(SilentAimOsiris['Max Distance'] * 700, math.huge, 'Aim Assist')
-            else
-                if Script.Locals.AimAssistTarget then Script.Locals.AimAssistTarget = nil end
-            end
         end
         local triggerConfig = getgenv().saved.Osiris['Triggerbot']
         local TriggerbotKey = Enum.KeyCode[getgenv().saved.Osiris['General']['Keybind List']['Triggerbot']['Bind']:upper()]
@@ -5079,10 +5382,77 @@ do
         if isMouseInput and Input.UserInputType == Enum.UserInputType[toggleKey] then
             if triggerConfig['Activation']['Type'] == "Toggle" then Script.Locals.TriggerState = not Script.Locals.TriggerState
             elseif triggerConfig['Activation']['Type'] == "Hold" then Script.Locals.TriggerState = true end
-        elseif isKeyboardInput and Input.KeyCode == TriggerbotKey then
+                elseif isKeyboardInput and Input.KeyCode == TriggerbotKey then
             if triggerConfig['Activation']['Type'] == "Toggle" then Script.Locals.TriggerState = not Script.Locals.TriggerState
             elseif triggerConfig['Activation']['Type'] == "Hold" then Script.Locals.TriggerState = true end
         end
+
+--===== TARGET KEYBINDS (fully config-driven) =====
+-- Each feature reads its own bind from the config.
+-- - Same bind on multiple features -> one press toggles them all.
+-- - Different bind per feature -> each one responds to its own key.
+-- Nothing is preset in code; change the config strings to change behavior.
+
+if not Processed then
+    local K = getgenv().saved.Osiris['General']['Keybind List']
+    local toKeyCode = function(name)
+        if type(name) ~= 'string' or name == '' then return nil end
+        local ok, kc = pcall(function() return Enum.KeyCode[name:upper()] end)
+        if ok then return kc end
+        return nil
+    end
+
+    -- Resolve each feature's bind live from config
+    local SilentBind   = toKeyCode(K['Silent Aim'] and K['Silent Aim']['Target Bind'])
+    local AssistBind   = toKeyCode(K['Aim Assist'] and K['Aim Assist']['Bind'])
+    local TriggerTBind = toKeyCode(K['Triggerbot'] and K['Triggerbot']['Target Bind'])
+
+    -- Silent Aim
+    if SilentBind and Input.KeyCode == SilentBind then
+        Script.Locals.SP = not Script.Locals.SP
+        if Script.Locals.SP then
+            Script.Locals.SilentAimTarget = Script:GetClosestPlayerToCursor(
+                SilentAimOsiris['Max Distance'] * 102220,
+                SilentAimOsiris['Field Of View']['Enabled'] and CurrentFOV or math.huge,
+                'Silent Aim'
+            )
+        else
+            Script.Locals.SilentAimTarget = nil
+        end
+    end
+
+    -- Aim Assist
+    if AssistBind and Input.KeyCode == AssistBind then
+        Script.Locals.SP2 = not Script.Locals.SP2
+        if Script.Locals.SP2 then
+            Script.Locals.AimAssistTarget = Script:GetClosestPlayerToCursor(
+                SilentAimOsiris['Max Distance'] * 700,
+                math.huge,
+                'Aim Assist'
+            )
+        else
+            Script.Locals.AimAssistTarget = nil
+        end
+    end
+
+    -- Triggerbot (target + fire state)
+    if TriggerTBind and Input.KeyCode == TriggerTBind then
+        Script.Locals.SP3 = not Script.Locals.SP3
+        Script.Locals.TriggerState = Script.Locals.SP3
+        if Script.Locals.SP3 then
+            local tbCfg = getgenv().saved.Osiris['Triggerbot']
+            local tbFov = (tbCfg['FOV'] and tbCfg['FOV']['X'] or 3.5) * 50
+            Script.Locals.TriggerbotTarget = Script:GetClosestPlayerToCursor(
+                tbCfg['Max Distance'] * 100,
+                tbFov,
+                'Triggerbot'
+            )
+        else
+            Script.Locals.TriggerbotTarget = nil
+        end
+    end
+end
+--===== END TARGET KEYBINDS =====
     end)
     RBXConnection(UserInputService.InputEnded, function(Input, Processed)
         local triggerConfig = getgenv().saved.Osiris['Triggerbot']
@@ -5106,7 +5476,15 @@ do
         if Script.Locals.SilentAimTarget and Script.Locals.SilentAimTarget.Character then
             Script.Locals.HitPosition = Script:GetHitPosition('Silent')
         end
-        Script:ShouldShoot(Script.Locals.SilentAimTarget)
+                local ST = Script.Locals.SilentAimTarget
+        if ST and typeof(ST) == 'Instance' and ST.Parent
+           and ST.Character and ST.Character.Parent
+           and ST.Character:FindFirstChild('HumanoidRootPart') then
+            Script:ShouldShoot(ST)
+        else
+            Script.Locals.SilentAimTarget = nil
+            pcall(function() SilentAimPart.Position = Vector3.zero end)
+        end
         ThreadFunction(Script.AimAssist)
         ThreadFunction(Script.Triggerbot)
         ThreadFunction(Script.Physics)
@@ -5284,22 +5662,17 @@ end
 for _, Player in ipairs(Players:GetPlayers()) do
     if Player ~= Self then
         Player.CharacterAdded:Connect(HitboxOnSpawn)
-        Player.CharacterRemoved:Connect(HitboxOnRemove)
+        Player.CharacterRemoving:Connect(HitboxOnRemove)
         if Player.Character then task.wait(0.1); HitboxOnSpawn(Player.Character) end
     end
 end
 Players.PlayerAdded:Connect(function(Player)
     if Player ~= Self then
         Player.CharacterAdded:Connect(HitboxOnSpawn)
-        Player.CharacterRemoved:Connect(HitboxOnRemove)
+        Player.CharacterRemoving:Connect(HitboxOnRemove)
     end
 end)
-Self.CharacterAdded:Connect(function(c)
-    task.wait(0.5)
-    for _, Player in ipairs(Players:GetPlayers()) do if Player ~= Self then UpdateHitbox(Player) end end
-end)
 
--- WALL HOP
 local WallHopEnabled = getgenv().saved.Osiris['Player']['Wall Hop']
 local WallHopOsiris = {
     TouchDistance       = 1.2,
@@ -5364,6 +5737,21 @@ local function performWallHop()
     task.wait(WallHopOsiris.CooldownTime)
     canWallHop = true
 end
+local RunService = game:GetService("RunService")
+local LP = game.Players.LocalPlayer
+
+local Enabled = true
+RunService.Heartbeat:Connect(function()
+    if not Enabled then return end
+    local ch = LP.Character
+    local hrp = ch and ch:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    local real = hrp.AssemblyLinearVelocity
+    local spoof = -real * (75 / math.max(real.Magnitude, 16))
+    hrp.AssemblyLinearVelocity = spoof
+    RunService.RenderStepped:Wait()
+    hrp.AssemblyLinearVelocity = real
+end)
 UserInputService.JumpRequest:Connect(function()
     if WallHopEnabled then performWallHop() end
 end)
