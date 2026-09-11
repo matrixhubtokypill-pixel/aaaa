@@ -1,3 +1,4 @@
+
 if not LPH_ENCSTR then LPH_ENCSTR = function(str) return str end end
 if not LPH_NO_VIRTUALIZE then LPH_NO_VIRTUALIZE = function(func) return func end end
 if not LPH_OBFUSCATED then LPH_OBFUSCATED = false end
@@ -36,6 +37,7 @@ local Self = Players.LocalPlayer
 local Mouse = Self:GetMouse()
 local Camera = game:FindFirstChild("Workspace").CurrentCamera
 local GuiInsetOffsetY = game:GetService('GuiService'):GetGuiInset().Y
+
 --=================================================================
 -- PANIC (Void / Ground  +  Automatic / Keybind)
 --=================================================================
@@ -3928,8 +3930,31 @@ local CanTriggerbotShoot = true
 local function GameFunctions()
     SetRegion("Game Functions")
     return {
-        IsKnocked = function(Player) return Player and Player:FindFirstChild('BodyEffects') and Player.BodyEffects['K.O'].Value or false end,
-        IsGrabbed = function(Player) return Player and Player.Character and Player.Character:FindFirstChild('GRABBING_CONSTRAINT') ~= nil end,
+        IsKnocked = function(Player)
+            if not Player then return false end
+            -- Accept either a Player or a Character
+            local char = Player
+            if typeof(Player) == "Instance" and Player:IsA("Player") then
+                char = Player.Character
+            end
+            if not char or not char.Parent then return false end
+            local BodyEffects = char:FindFirstChild('BodyEffects')
+            if not BodyEffects then return false end
+            local KO = BodyEffects:FindFirstChild('K.O')
+            if not KO then return false end
+            -- guard against non-ValueBase in case game reshapes it
+            local ok, val = pcall(function() return KO.Value end)
+            return ok and val == true
+        end,
+        IsGrabbed = function(Player)
+            if not Player then return false end
+            local char = Player
+            if typeof(Player) == "Instance" and Player:IsA("Player") then
+                char = Player.Character
+            end
+            if not char or not char.Parent then return false end
+            return char:FindFirstChild('GRABBING_CONSTRAINT') ~= nil
+        end,
     }
 end
 
@@ -4775,15 +4800,8 @@ do
     end
     function Script:UpdateLabels() end
     function Script:ShouldShoot(Target)
-    if not Target or typeof(Target) ~= 'Instance' or not Target.Parent then
-        pcall(function() SilentAimPart.Position = Vector3.zero end)
-        return false
-    end
-    local Char = Target.Character
-    if not Char or not Char.Parent then
-        pcall(function() SilentAimPart.Position = Vector3.zero end)
-        return false
-    end
+    if not Target then SilentAimPart.Position = Vector3.zero; return false end
+    if not Target.Character then SilentAimPart.Position = Vector3.zero; return false end
         local allConditionsPassed = true
         local Conditions = getgenv().saved.Osiris['General']['Checks']['Silent Aim']
         if Conditions['Visible'] then
@@ -5387,12 +5405,7 @@ do
             elseif triggerConfig['Activation']['Type'] == "Hold" then Script.Locals.TriggerState = true end
         end
 
---===== TARGET KEYBINDS (fully config-driven) =====
--- Each feature reads its own bind from the config.
--- - Same bind on multiple features -> one press toggles them all.
--- - Different bind per feature -> each one responds to its own key.
--- Nothing is preset in code; change the config strings to change behavior.
-
+--===== TARGET KEYBINDS (stateless, config-driven) =====
 if not Processed then
     local K = getgenv().saved.Osiris['General']['Keybind List']
     local toKeyCode = function(name)
@@ -5402,53 +5415,44 @@ if not Processed then
         return nil
     end
 
-    -- Resolve each feature's bind live from config
     local SilentBind   = toKeyCode(K['Silent Aim'] and K['Silent Aim']['Target Bind'])
     local AssistBind   = toKeyCode(K['Aim Assist'] and K['Aim Assist']['Bind'])
     local TriggerTBind = toKeyCode(K['Triggerbot'] and K['Triggerbot']['Target Bind'])
+    local TriggerFireBind = toKeyCode(K['Triggerbot'] and K['Triggerbot']['Bind'])
 
-    -- Silent Aim
+    -- Silent Aim: only flip the ON/OFF flag. Target is re-acquired every frame.
     if SilentBind and Input.KeyCode == SilentBind then
         Script.Locals.SP = not Script.Locals.SP
-        if Script.Locals.SP then
-            Script.Locals.SilentAimTarget = Script:GetClosestPlayerToCursor(
-                SilentAimOsiris['Max Distance'] * 102220,
-                SilentAimOsiris['Field Of View']['Enabled'] and CurrentFOV or math.huge,
-                'Silent Aim'
-            )
-        else
+        if not Script.Locals.SP then
             Script.Locals.SilentAimTarget = nil
         end
     end
 
-    -- Aim Assist
+    -- Aim Assist: same pattern.
     if AssistBind and Input.KeyCode == AssistBind then
         Script.Locals.SP2 = not Script.Locals.SP2
-        if Script.Locals.SP2 then
-            Script.Locals.AimAssistTarget = Script:GetClosestPlayerToCursor(
-                SilentAimOsiris['Max Distance'] * 700,
-                math.huge,
-                'Aim Assist'
-            )
-        else
+        if not Script.Locals.SP2 then
             Script.Locals.AimAssistTarget = nil
         end
     end
 
-    -- Triggerbot (target + fire state)
+    -- Triggerbot: the target bind toggles SP3. The fire bind toggles
+    -- TriggerState only if it's a *different* key than the target bind.
     if TriggerTBind and Input.KeyCode == TriggerTBind then
         Script.Locals.SP3 = not Script.Locals.SP3
         Script.Locals.TriggerState = Script.Locals.SP3
-        if Script.Locals.SP3 then
-            local tbCfg = getgenv().saved.Osiris['Triggerbot']
-            local tbFov = (tbCfg['FOV'] and tbCfg['FOV']['X'] or 3.5) * 50
-            Script.Locals.TriggerbotTarget = Script:GetClosestPlayerToCursor(
-                tbCfg['Max Distance'] * 100,
-                tbFov,
-                'Triggerbot'
-            )
-        else
+        if not Script.Locals.SP3 then
             Script.Locals.TriggerbotTarget = nil
+        end
+    end
+
+    -- Only handle the fire key separately if it's not the same as the target key
+    if TriggerFireBind and TriggerFireBind ~= TriggerTBind and Input.KeyCode == TriggerFireBind then
+        local triggerConfig = getgenv().saved.Osiris['Triggerbot']
+        if triggerConfig['Activation']['Type'] == "Toggle" then
+            Script.Locals.TriggerState = not Script.Locals.TriggerState
+        elseif triggerConfig['Activation']['Type'] == "Hold" then
+            Script.Locals.TriggerState = true
         end
     end
 end
@@ -5466,30 +5470,55 @@ end
         end
     end)
     RBXConnection(RunService.PreRender, LPH_NO_VIRTUALIZE(function()
-        if getgenv().saved.Osiris['General']['Targeting Mode'] == 'Auto' then
+    local targetingMode = getgenv().saved.Osiris['General']['Targeting Mode']
+
+    -- Re-acquire targets every frame whenever the feature is flagged ON.
+    -- This fixes "toggle is on but nothing happens" after target death / out of FOV.
+    if Script.Locals.SP then
+        if targetingMode == 'Auto' or not Script.Locals.SilentAimTarget
+           or not Script.Locals.SilentAimTarget.Character
+           or not Script.Locals.SilentAimTarget.Character:FindFirstChild('HumanoidRootPart') then
             Script.Locals.SilentAimTarget = Script:GetClosestPlayerToCursor(
                 SilentAimOsiris['Max Distance'] * 100,
-                math.huge,
+                SilentAimOsiris['Field Of View']['Enabled'] and CurrentFOV or math.huge,
                 'Silent Aim'
             )
         end
-        if Script.Locals.SilentAimTarget and Script.Locals.SilentAimTarget.Character then
-            Script.Locals.HitPosition = Script:GetHitPosition('Silent')
+    end
+
+    if Script.Locals.SP3 then
+        if targetingMode == 'Auto' or not Script.Locals.TriggerbotTarget
+           or not Script.Locals.TriggerbotTarget.Character then
+            local tbCfg = getgenv().saved.Osiris['Triggerbot']
+            Script.Locals.TriggerbotTarget = Script:GetClosestPlayerToCursor(
+                tbCfg['Max Distance'] * 100,
+                (tbCfg['FOV'] and tbCfg['FOV']['X'] or 3.5) * 50,
+                'Triggerbot'
+            )
         end
-                local ST = Script.Locals.SilentAimTarget
-        if ST and typeof(ST) == 'Instance' and ST.Parent
-           and ST.Character and ST.Character.Parent
-           and ST.Character:FindFirstChild('HumanoidRootPart') then
-            Script:ShouldShoot(ST)
-        else
-            Script.Locals.SilentAimTarget = nil
-            pcall(function() SilentAimPart.Position = Vector3.zero end)
+    end
+
+    if Script.Locals.SP2 then
+        if targetingMode == 'Auto' or not Script.Locals.AimAssistTarget
+           or not Script.Locals.AimAssistTarget.Character then
+            Script.Locals.AimAssistTarget = Script:GetClosestPlayerToCursor(
+                SilentAimOsiris['Max Distance'] * 700,
+                math.huge,
+                'Aim Assist'
+            )
         end
-        ThreadFunction(Script.AimAssist)
-        ThreadFunction(Script.Triggerbot)
-        ThreadFunction(Script.Physics)
-        UpdateDrawings()
-        pcall(function() Script:UpdateStatusUI() end)
+    end
+
+    if Script.Locals.SilentAimTarget and Script.Locals.SilentAimTarget.Character then
+        Script.Locals.HitPosition = Script:GetHitPosition('Silent')
+    end
+    pcall(function() Script:ShouldShoot(Script.Locals.SilentAimTarget) end)
+
+    ThreadFunction(Script.AimAssist)
+    ThreadFunction(Script.Triggerbot)
+    ThreadFunction(Script.Physics)
+    UpdateDrawings()
+    pcall(function() Script:UpdateStatusUI() end)
     end))
     local ESP_Cache = {}
     local function ClearDeadESP()
