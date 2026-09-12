@@ -6765,6 +6765,7 @@ do
 --===== TARGET KEYBINDS (stateless, config-driven) =====
 if not Processed then
     local K = getgenv().saved.Osiris['General']['Keybind List']
+    local isAutoMode = getgenv().saved.Osiris['General']['Targeting Mode'] == 'Auto'
     local toKeyCode = function(name)
         if type(name) ~= 'string' or name == '' then return nil end
         local ok, kc = pcall(function() return Enum.KeyCode[name:upper()] end)
@@ -6772,10 +6773,10 @@ if not Processed then
         return nil
     end
 
-    local SilentBind   = toKeyCode(K['Silent Aim'] and K['Silent Aim']['Target Bind'])
-    local AssistBind   = toKeyCode(K['Aim Assist'] and K['Aim Assist']['Bind'])
-    local TriggerTBind = toKeyCode(K['Triggerbot'] and K['Triggerbot']['Target Bind'])
-    local TriggerFireBind = toKeyCode(K['Triggerbot'] and K['Triggerbot']['Bind'])
+    local SilentBind      = (not isAutoMode) and toKeyCode(K['Silent Aim'] and K['Silent Aim']['Target Bind'])          or nil
+    local AssistBind      = (not isAutoMode) and toKeyCode(K['Aim Assist'] and K['Aim Assist']['Bind'])                  or nil
+    local TriggerTBind    = (not isAutoMode) and toKeyCode(K['Triggerbot'] and K['Triggerbot']['Target Bind'])           or nil
+    local TriggerFireBind = (not isAutoMode) and toKeyCode(K['Triggerbot'] and K['Triggerbot']['Bind'])                  or nil
 
     -- Silent Aim: only flip the ON/OFF flag. Target is re-acquired every frame.
     if SilentBind and Input.KeyCode == SilentBind then
@@ -6878,17 +6879,17 @@ end
 
     -- Re-acquire targets every frame whenever the feature is flagged ON.
     -- This fixes "toggle is on but nothing happens" after target death / out of FOV.
-    if Script.Locals.SP then
-        if targetingMode == 'Auto' or not Script.Locals.SilentAimTarget
-           or not Script.Locals.SilentAimTarget.Character
-           or not Script.Locals.SilentAimTarget.Character:FindFirstChild('HumanoidRootPart') then
-            Script.Locals.SilentAimTarget = Script:GetClosestPlayerToCursor(
-                SilentAimOsiris['Max Distance'] * 100,
-                SilentAimOsiris['Field Of View']['Enabled'] and CurrentFOV or math.huge,
-                'Silent Aim'
-            )
-        end
+    if Script.Locals.SP or targetingMode == 'Auto' then
+    if targetingMode == 'Auto' or not Script.Locals.SilentAimTarget
+       or not Script.Locals.SilentAimTarget.Character
+       or not Script.Locals.SilentAimTarget.Character:FindFirstChild('HumanoidRootPart') then
+        Script.Locals.SilentAimTarget = Script:GetClosestPlayerToCursor(
+            SilentAimOsiris['Max Distance'] * 100,
+            SilentAimOsiris['Field Of View']['Enabled'] and CurrentFOV or math.huge,
+            'Silent Aim'
+        )
     end
+end
 
     if Script.Locals.SP3 then
         if targetingMode == 'Auto' or not Script.Locals.TriggerbotTarget
