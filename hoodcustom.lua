@@ -6773,9 +6773,7 @@ if not Processed then
         return nil
     end
 
-    local SilentBind      = (not isAutoMode) and toKeyCode(K['Silent Aim'] and K['Silent Aim']['Target Bind']) or nil
-    local AssistBind   = toKeyCode(K['Aim Assist'] and K['Aim Assist']['Bind'])
-    local TriggerBind     = toKeyCode(K['Triggerbot'] and K['Triggerbot']['Bind'])
+    local TriggerBind     = (not isAutoMode) and toKeyCode(K['Triggerbot'] and K['Triggerbot']['Target Bind']) or nil
 
     if SilentBind and Input.KeyCode == SilentBind then
         Script.Locals.SP = not Script.Locals.SP
