@@ -53,6 +53,7 @@ if game.PlaceId == 138995385694035 then -- hood custom
         local ok = pcall(function()
             -- Combat
             O['Silent Aim']['Enabled']                              = false
+            O['Aim Assist']['Enabled']                              = false
             O['Future']['Active']                                   = false
             O['Anti Future']['Active']                              = false
 
@@ -65,13 +66,22 @@ if game.PlaceId == 138995385694035 then -- hood custom
             O['Hitbox Expander']['Enabled']                         = false
             O['Player']['Anti Stomp']                               = false
             O['Player']['Panic']['Enabled']                         = false
+            O['Player']['Wall Hop']                                 = false
 
-            -- Also kill any live side-effects / visuals
+            -- Kill the two biggest background loops on this place
+            O['Player']['Avatar']['Enabled']                        = false
+            O['Weapon Modifications']['Skin Changer']['Enabled']    = false
+
+            -- Status UI heartbeat
+            O['General']['Show Status']                             = false
+
+            -- Live side effects
             local S = getgenv()
             if S.antifuture and S.antifuture.active and S.antifuture.active() then
-                pcall(S.antifuture.toggle)   -- flips it off
+                pcall(S.antifuture.toggle)
             end
             if S.future and S.future.stop then pcall(S.future.stop) end
+            if S.avatar_cleanup then pcall(S.avatar_cleanup) end
         end)
         return ok
     end
