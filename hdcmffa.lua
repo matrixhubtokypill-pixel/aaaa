@@ -6773,11 +6773,10 @@ if not Processed then
         return nil
     end
 
-    local SilentBind      = (not isAutoMode) and toKeyCode(K['Silent Aim'] and K['Silent Aim']['Target Bind'])          or nil
-    local TriggerTBind    = (not isAutoMode) and toKeyCode(K['Triggerbot'] and K['Triggerbot']['Target Bind'])           or nil
-    local TriggerFireBind = (not isAutoMode) and toKeyCode(K['Triggerbot'] and K['Triggerbot']['Bind'])                  or nil
+    local SilentBind      = (not isAutoMode) and toKeyCode(K['Silent Aim'] and K['Silent Aim']['Target Bind']) or nil
+    local AssistBind      = (not isAutoMode) and toKeyCode(K['Aim Assist'] and K['Aim Assist']['Bind'])         or nil
+    local TriggerBind     = (not isAutoMode) and toKeyCode(K['Triggerbot'] and K['Triggerbot']['Bind'])          or nil
 
-    -- Silent Aim: only flip the ON/OFF flag. Target is re-acquired every frame.
     if SilentBind and Input.KeyCode == SilentBind then
         Script.Locals.SP = not Script.Locals.SP
         if not Script.Locals.SP then
@@ -6785,7 +6784,6 @@ if not Processed then
         end
     end
 
-    -- Aim Assist: same pattern.
     if AssistBind and Input.KeyCode == AssistBind then
         Script.Locals.SP2 = not Script.Locals.SP2
         if not Script.Locals.SP2 then
@@ -6793,23 +6791,11 @@ if not Processed then
         end
     end
 
-    -- Triggerbot: the target bind toggles SP3. The fire bind toggles
-    -- TriggerState only if it's a *different* key than the target bind.
-    if TriggerTBind and Input.KeyCode == TriggerTBind then
+    if TriggerBind and Input.KeyCode == TriggerBind then
         Script.Locals.SP3 = not Script.Locals.SP3
         Script.Locals.TriggerState = Script.Locals.SP3
         if not Script.Locals.SP3 then
             Script.Locals.TriggerbotTarget = nil
-        end
-    end
-
-    -- Only handle the fire key separately if it's not the same as the target key
-    if TriggerFireBind and TriggerFireBind ~= TriggerTBind and Input.KeyCode == TriggerFireBind then
-        local triggerConfig = getgenv().saved.Osiris['Triggerbot']
-        if triggerConfig['Activation']['Type'] == "Toggle" then
-            Script.Locals.TriggerState = not Script.Locals.TriggerState
-        elseif triggerConfig['Activation']['Type'] == "Hold" then
-            Script.Locals.TriggerState = true
         end
     end
 end
@@ -6817,13 +6803,18 @@ end
     end)
     RBXConnection(UserInputService.InputEnded, function(Input, Processed)
         local triggerConfig = getgenv().saved.Osiris['Triggerbot']
-        if triggerConfig['Activation']['Type'] == "Hold" then
-            local bindName = getgenv().saved.Osiris['General']['Keybind List']['Triggerbot']['Bind']
-            local TriggerbotKey = Enum.KeyCode[bindName:upper()]
-            local isMouseInput = triggerConfig['Activation']['Mode'] == 'Mouse'
-            local isKeyboardInput = triggerConfig['Activation']['Mode'] == 'Keybind'
-            if isMouseInput and Input.UserInputType == Enum.UserInputType[bindName] then Script.Locals.TriggerState = false
-            elseif isKeyboardInput and Input.KeyCode == TriggerbotKey then Script.Locals.TriggerState = false end
+        if triggerConfig['Activation']['Type'] ~= "Hold" then return end
+        local bindName = getgenv().saved.Osiris['General']['Keybind List']['Triggerbot']['Bind']
+        local ok, TriggerbotKey = pcall(function() return Enum.KeyCode[bindName:upper()] end)
+        if not ok then return end
+        local isMouseInput = triggerConfig['Activation']['Mode'] == 'Mouse'
+        local isKeyboardInput = triggerConfig['Activation']['Mode'] == 'Keybind'
+        if isMouseInput and Input.UserInputType == Enum.UserInputType[bindName] then
+            Script.Locals.TriggerState = false
+            Script.Locals.SP3 = false
+        elseif isKeyboardInput and Input.KeyCode == TriggerbotKey then
+            Script.Locals.TriggerState = false
+            Script.Locals.SP3 = false
         end
     end)
     RBXConnection(RunService.PreRender, LPH_NO_VIRTUALIZE(function()
