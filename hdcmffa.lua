@@ -286,7 +286,6 @@ do
         ["Shotgun"]          = "Shotgun",
         ["SMG"]              = "SMG",
     }
-
     local function HoodName(weaponName)
         return HOOD_FOLDER[weaponName] or weaponName
     end
@@ -297,7 +296,7 @@ do
         REV_HANDLE = "Revolver",
     }
 
-    -- beam codes keyed by hood folder name (what the game writes)
+    -- beam codes keyed by hood folder name
     local BEAM_CODES = {
         ["DoubleBarrel"]    = "109d1326878cc594bc1bb42d126250810999782f",
         ["Revolver"]        = "539db315b53f77390c0aa74773158e25bedcdd6e",
@@ -310,12 +309,10 @@ do
         local s = getgenv().saved
         return s and s.Osiris and s.Osiris['Weapon Modifications'] and s.Osiris['Weapon Modifications']['Skin Changer']
     end
-
     local function GetHoodSkins()
         local cfg = GetCfg()
         return cfg and cfg['Hood Custom'] or nil
     end
-
     local function SkinNameFor(toolName)
         local hood = GetHoodSkins()
         if not hood then return nil end
@@ -342,27 +339,21 @@ do
                 for _, code in pairs(BEAM_CODES) do
                     payload[code] = { Name = color }
                 end
-                pcall(function()
-                    bulletBeams.Value = HttpService:JSONEncode(payload)
-                end)
+                pcall(function() bulletBeams.Value = HttpService:JSONEncode(payload) end)
             end
         end
-
         if equippedBulletBeams and equippedBulletBeams:IsA('StringValue') then
             local payload = {}
             for weapon, code in pairs(BEAM_CODES) do
                 payload['['..weapon..']'] = code
             end
-            pcall(function()
-                equippedBulletBeams.Value = HttpService:JSONEncode(payload)
-            end)
+            pcall(function() equippedBulletBeams.Value = HttpService:JSONEncode(payload) end)
         end
     end
 
     local function IsBasePart(x)
         return typeof(x) == 'Instance' and x:IsA('BasePart')
     end
-
     local function EnsurePrimaryPart(model)
         if not model or not model:IsA('Model') then return nil end
         if not IsBasePart(model.PrimaryPart) then
@@ -371,7 +362,6 @@ do
         end
         return model.PrimaryPart
     end
-
     local function PrepParts(model, isKnife)
         for _, part in ipairs(model:GetDescendants()) do
             if part:IsA('BasePart') then
@@ -392,7 +382,6 @@ do
             end
         end
     end
-
     local function WeldParts(a, b)
         if IsBasePart(a) and IsBasePart(b) then
             local weld = Instance.new('WeldConstraint')
@@ -403,22 +392,39 @@ do
         end
     end
 
-    local function GetWrapSkinModel(weaponName, skinName, timeout)
-        timeout = timeout or 5
-        local wraps = ReplicatedStorage:FindFirstChild('Wraps') or ReplicatedStorage:WaitForChild('Wraps', timeout)
+    -- ── no WaitForChild, tries multiple folder name variants ─────
+    local function GetWrapSkinModel(weaponName, skinName)
+        local wraps = ReplicatedStorage:FindFirstChild('Wraps')
         if not wraps then return nil end
-        local folder = wraps:FindFirstChild('['..weaponName..']')
-        if not folder then return nil end
         if not skinName or skinName == '' then return nil end
-        return folder:FindFirstChild(skinName)
+
+        local candidates = {
+            '['..weaponName..']',
+            '['..weaponName:gsub('-', '')..']',
+            '['..weaponName:gsub('-', ' ')..']',
+            '['..weaponName:gsub(' ', '')..']',
+            '['..weaponName:gsub(' ', '-')..']',
+        }
+        for _, folderName in ipairs(candidates) do
+            local folder = wraps:FindFirstChild(folderName)
+            if folder then
+                local skin = folder:FindFirstChild(skinName)
+                if skin then return skin end
+            end
+        end
+        return nil
     end
-    
-    local function ApplyModelOnHolder(holder, skinModel)
+
+    local function ApplyModelOnHolder(holder, skinModel, skinName)
         if not holder or not skinModel then return end
         local handle = holder:FindFirstChild('Handle')
         if not IsBasePart(handle) then return end
+
+        -- already has this exact skin? bail early
         local old = holder:FindFirstChild('SkinModel')
+        if old and old:GetAttribute('SkinApplied') == skinName then return end
         if old then old:Destroy() end
+
         local clone = skinModel:Clone()
         clone.Name = 'SkinModel'
         local primary = EnsurePrimaryPart(clone)
@@ -431,48 +437,57 @@ do
             if part:IsA('BasePart') then WeldParts(handle, part) end
         end
         handle.Transparency = 1
+        clone:SetAttribute('SkinApplied', skinName or '')
     end
 
+    -- ── Tool skin (used for knife and any tool-slot weapons) ─────
     local function ApplyToolSkin(tool)
         if not tool or not tool:IsA('Tool') then return end
         local weaponName = tool.Name:match('^%[(.+)%]$')
         if not weaponName then return end
         local skinName = SkinNameFor(tool.Name)
         if type(skinName) ~= 'string' or skinName == '' then return end
-        local skinModel = GetWrapSkinModel(HoodName(weaponName), skinName, 5)
-        if skinModel then ApplyModelOnHolder(tool, skinModel) end
+
+        local existing = tool:FindFirstChild('SkinModel')
+        if existing and existing:GetAttribute('SkinApplied') == skinName then return end
+
+        local skinModel = GetWrapSkinModel(HoodName(weaponName), skinName)
+        if skinModel then ApplyModelOnHolder(tool, skinModel, skinName) end
     end
 
+    -- ── Knife uses ReplicatedStorage.Knives instead of Wraps ─────
     local function ApplyKnifeSkin(tool)
         if not tool or not tool:IsA('Tool') then return end
         if tool.Name ~= '[Knife]' then return end
         local hood = GetHoodSkins()
         local knifeSkin = hood and hood['[Knife]']
         if not knifeSkin or knifeSkin == '' then return end
+
+        local existing = tool:FindFirstChild('SkinModel')
+        if existing and existing:GetAttribute('SkinApplied') == knifeSkin then return end
+
         local knives = ReplicatedStorage:FindFirstChild('Knives')
         if not knives then return end
         local skinModel = knives:FindFirstChild(knifeSkin)
-        if skinModel then ApplyModelOnHolder(tool, skinModel) end
+        if skinModel then ApplyModelOnHolder(tool, skinModel, knifeSkin) end
     end
 
-    local function ApplyToolSkin(tool)
-        if not tool or not tool:IsA('Tool') then return end
-        local weaponName = tool.Name:match('^%[(.+)%]$')
+    -- ── CHARACTER-ATTACHED HANDLE SKIN (this is what DB uses!) ──
+    local function ApplyHandleSkin(character, handleFolderName)
+        if not character then return end
+        local weaponName = HANDLE_MAP[handleFolderName]
         if not weaponName then return end
-
-        local skinName = SkinNameFor(tool.Name)
+        local skinName = SkinNameFor('['..weaponName..']')
         if type(skinName) ~= 'string' or skinName == '' then return end
 
-        -- already has the right SkinModel? bail
-        local existing = tool:FindFirstChild('SkinModel')
+        local handleFolder = character:FindFirstChild(handleFolderName)
+        if not handleFolder then return end
+
+        local existing = handleFolder:FindFirstChild('SkinModel')
         if existing and existing:GetAttribute('SkinApplied') == skinName then return end
 
         local skinModel = GetWrapSkinModel(HoodName(weaponName), skinName)
-        if skinModel then
-            ApplyModelOnHolder(tool, skinModel)
-            local sm = tool:FindFirstChild('SkinModel')
-            if sm then sm:SetAttribute('SkinApplied', skinName) end
-        end
+        if skinModel then ApplyModelOnHolder(handleFolder, skinModel, skinName) end
     end
 
     local function ApplyAll(character)
@@ -517,14 +532,25 @@ do
         end)
     end)
 
-    -- Reapply periodically
+    -- Reapply periodically (throttled — once per second, not 60/s)
+    local lastRescan = 0
     RunService.Heartbeat:Connect(function()
+        local now = os.clock()
+        if now - lastRescan < 1 then return end
+        lastRescan = now
+
         local char = LocalPlayer.Character
         if not char then return end
+
         for _, tool in ipairs(char:GetChildren()) do
             if tool:IsA('Tool') then
                 ApplyToolSkin(tool)
                 ApplyKnifeSkin(tool)
+            end
+        end
+        for handleName in pairs(HANDLE_MAP) do
+            if char:FindFirstChild(handleName) then
+                ApplyHandleSkin(char, handleName)
             end
         end
     end)
