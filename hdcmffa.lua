@@ -52,7 +52,7 @@ if game.PlaceId == 138995385694035 then -- hood custom
     local function Kill()
         local ok = pcall(function()
             -- Combat
-            O['Silent Aim']['Enabled']                              = false
+            --O['Silent Aim']['Enabled']                              = false
             O['Future']['Active']                                   = false
             O['Anti Future']['Active']                              = false
 
@@ -3747,6 +3747,480 @@ do
 end
 --=================================================================
 -- END UNINJECT
+--=================================================================
+--=================================================================
+-- HOOD CUSTOM SILENT AIM (getMouseWorldHit hook)
+--=================================================================
+do
+    local Players            = game:GetService("Players")
+    local RunService         = game:GetService("RunService")
+    local UserInputService   = game:GetService("UserInputService")
+    local Workspace          = game.Workspace
+
+    local Self   = Players.LocalPlayer
+    local Camera = Workspace.CurrentCamera
+    local Mouse  = Self:GetMouse()
+
+    -- ── config shortcuts ────────────────────────────────────────────
+    local function SACfg()  return getgenv().saved.Osiris['Silent Aim'] end
+    local function GenCfg() return getgenv().saved.Osiris['General'] end
+
+    -- ── state ───────────────────────────────────────────────────────
+    local Target        = nil
+    local IsToggled     = false          -- only used in Toggle mode
+    local HitPosition   = Vector3.new()
+    local CurrentFOV    = 120
+    local CurrentFOVX   = 127
+    local CurrentFOVY   = 127
+    local CleanupFns    = {}
+
+    -- returns true when Silent Aim should actually be redirecting shots
+    local function IsActive()
+        local genCfg = GenCfg()
+        if genCfg['Targeting Mode'] == 'Auto' then return true end
+        return IsToggled
+    end
+
+    -- ── FOV visuals ─────────────────────────────────────────────────
+    local UtilityGui = Instance.new("ScreenGui")
+    UtilityGui.Name           = "SilentAim_FOV"
+    UtilityGui.IgnoreGuiInset = true
+    UtilityGui.ResetOnSpawn   = false
+    pcall(function() UtilityGui.Parent = game:GetService("CoreGui") end)
+    if not UtilityGui.Parent then UtilityGui.Parent = Self:WaitForChild("PlayerGui") end
+    table.insert(CleanupFns, function() UtilityGui:Destroy() end)
+
+    -- Circle FOV
+    local CircleFrame = Instance.new("Frame")
+    CircleFrame.BackgroundTransparency = 1
+    CircleFrame.BorderSizePixel        = 0
+    CircleFrame.AnchorPoint            = Vector2.new(0.5, 0.5)
+    Instance.new("UICorner", CircleFrame).CornerRadius = UDim.new(1, 0)
+    local CircleStroke = Instance.new("UIStroke", CircleFrame)
+    CircleStroke.Thickness      = 1
+    CircleStroke.Color          = Color3.fromRGB(255, 255, 255)
+    CircleStroke.Transparency   = 0
+    CircleFrame.Visible = false
+    CircleFrame.Parent  = UtilityGui
+
+    -- 2D Box FOV
+    local BoxFrame = Instance.new("Frame")
+    BoxFrame.BackgroundTransparency = 1
+    BoxFrame.BorderSizePixel        = 0
+    local BoxStroke = Instance.new("UIStroke", BoxFrame)
+    BoxStroke.Thickness      = 1
+    BoxStroke.Color          = Color3.fromRGB(255, 255, 255)
+    BoxStroke.LineJoinMode   = Enum.LineJoinMode.Miter
+    BoxFrame.Visible = false
+    BoxFrame.Parent  = UtilityGui
+
+    -- 3D FOV probe part
+    local FOVPart = Instance.new("Part")
+    FOVPart.Name        = "SA_FOVPart"
+    FOVPart.Anchored    = true
+    FOVPart.CanCollide  = false
+    FOVPart.CanQuery    = true
+    FOVPart.Transparency = 1
+    FOVPart.Size        = Vector3.new(12, 12, 12)
+    FOVPart.Position    = Vector3.new(0, -9999, 0)
+    FOVPart.Parent      = Workspace
+    table.insert(CleanupFns, function() FOVPart:Destroy() end)
+
+    -- ── visibility / state helpers ──────────────────────────────────
+    local function IsVisible(char)
+        if not char or not char:FindFirstChild("HumanoidRootPart") then return false end
+        local origin = Camera.CFrame.Position
+        local target = char.HumanoidRootPart.Position
+        local params = RaycastParams.new()
+        params.FilterType = Enum.RaycastFilterType.Exclude
+        params.FilterDescendantsInstances = { Self.Character or {} }
+        local result = Workspace:Raycast(origin, target - origin, params)
+        if result then
+            return Players:GetPlayerFromCharacter(result.Instance:FindFirstAncestorOfClass("Model")) ~= nil
+        end
+        return true
+    end
+
+    local function IsKnocked(char)
+        if not char then return false end
+        local be = char:FindFirstChild("BodyEffects")
+        if not be then return false end
+        local ko = be:FindFirstChild("K.O")
+        return ko and ko.Value == true
+    end
+
+    local function IsGrabbed(player)
+        local char = player and player.Character
+        if not char then return false end
+        return char:FindFirstChild("GRABBING_CONSTRAINT") ~= nil
+    end
+
+    -- ── geometry helpers ────────────────────────────────────────────
+    local function GetClosestPointOnPartSmart(Part, Scale)
+        local PartCFrame = Part.CFrame
+        local HalfSize   = Part.Size * (Scale / 2)
+        local MousePos   = UserInputService:GetMouseLocation()
+        local Ray        = Camera:ViewportPointToRay(MousePos.X, MousePos.Y)
+        local dot        = Ray.Direction:Dot(PartCFrame.Position - Ray.Origin)
+        local projected  = Ray.Origin + Ray.Direction * dot
+        local local_pt   = PartCFrame:PointToObjectSpace(projected)
+        return PartCFrame * Vector3.new(
+            math.clamp(local_pt.X, -HalfSize.X, HalfSize.X),
+            math.clamp(local_pt.Y, -HalfSize.Y, HalfSize.Y),
+            math.clamp(local_pt.Z, -HalfSize.Z, HalfSize.Z)
+        )
+    end
+
+    local function GetClosestPartToCursor(Character)
+        local Closest, Distance = nil, math.huge
+        local mouseLoc = UserInputService:GetMouseLocation()
+        for _, Part in ipairs(Character:GetChildren()) do
+            if not Part:IsA("BasePart") then continue end
+            local Pos, OnScreen = Camera:WorldToViewportPoint(Part.Position)
+            if not OnScreen then continue end
+            local Mag = (Vector2.new(Pos.X, Pos.Y) - mouseLoc).Magnitude
+            if Mag < Distance then Closest = Part; Distance = Mag end
+        end
+        return Closest
+    end
+
+    -- pick the part that is physically closest to a given world position
+    local function GetClosestPartToPosition(Character, worldPos)
+        local Closest, Distance = nil, math.huge
+        for _, Part in ipairs(Character:GetChildren()) do
+            if not Part:IsA("BasePart") then continue end
+            local d = (Part.Position - worldPos).Magnitude
+            if d < Distance then Closest = Part; Distance = d end
+        end
+        return Closest
+    end
+
+    -- ── hit position ────────────────────────────────────────────────
+    local function GetHitPosition()
+        local cfg = SACfg()
+        if not Target or not Target.Character then return nil end
+        local char = Target.Character
+        local hum  = char:FindFirstChildOfClass("Humanoid")
+        if not hum or hum.Health <= 0 then return nil end
+
+        local NearestPart = GetClosestPartToCursor(char)
+        if not NearestPart then return nil end
+
+        local HitPart = cfg['Hit Part']
+        local pos
+
+        if HitPart == 'Nearest Point' then
+            local npCfg = cfg['Nearest Point'] or { Mode = 'Smart', Scale = 0.5 }
+            if npCfg['Mode'] == 'Smart' then
+                pos = GetClosestPointOnPartSmart(NearestPart, npCfg['Scale'] or 0.5)
+            else
+                pos = NearestPart.Position
+            end
+        elseif HitPart == 'Nearest Part' then
+            pos = NearestPart.Position
+        else
+            local part = char:FindFirstChild(HitPart)
+            pos = (part and part.Position) or NearestPart.Position
+        end
+
+        -- optional velocity prediction via the Osiris Future module
+        if getgenv().future and getgenv().future.predict then
+            local tool = Self.Character and Self.Character:FindFirstChildWhichIsA("Tool")
+            local ok, predicted = pcall(getgenv().future.predict, Target, tool and tool.Name or nil, pos)
+            if ok and typeof(predicted) == "Vector3" then pos = predicted end
+        end
+
+        return pos
+    end
+
+    -- ── pass checks ─────────────────────────────────────────────────
+    local function PassChecks(player)
+        if not player or not player.Character then return false end
+        local char = player.Character
+        local hrp  = char:FindFirstChild("HumanoidRootPart")
+        local hum  = char:FindFirstChildOfClass("Humanoid")
+        if not hrp or not hum or hum.Health <= 0 then return false end
+
+        local checks = GenCfg()['Checks']['Silent Aim']
+        if checks['Visible']      and not IsVisible(char)               then return false end
+        if checks['Knocked']      and IsKnocked(char)                    then return false end
+        if checks['Self Knocked'] and IsKnocked(Self.Character)          then return false end
+        if checks['Carried']      and IsGrabbed(player)                  then return false end
+        return true
+    end
+
+    -- ── targeting ───────────────────────────────────────────────────
+    local function GetClosestPlayer()
+        local cfg     = SACfg()
+        local fovCfg  = cfg['Field Of View']
+        local maxDist = cfg['Max Distance'] or math.huge
+        local mouseLoc = UserInputService:GetMouseLocation()
+        local Closest, ClosestDist = nil, math.huge
+        local selfHRP = Self.Character and Self.Character:FindFirstChild("HumanoidRootPart")
+
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr == Self then continue end
+            local char = plr.Character
+            if not char then continue end
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if not hrp or not hum or hum.Health <= 0 then continue end
+
+            if selfHRP and (hrp.Position - selfHRP.Position).Magnitude > maxDist then continue end
+
+            local screenPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+            if not onScreen then continue end
+
+            local dx = screenPos.X - mouseLoc.X
+            local dy = screenPos.Y - mouseLoc.Y
+            local screenDist = math.sqrt(dx*dx + dy*dy)
+
+            if fovCfg['Enabled'] then
+                local mode = fovCfg['Mode']
+                if mode == 'Circle' then
+                    if screenDist > (fovCfg['Circle'] or 120) then continue end
+                elseif mode == '2D' then
+                    local box = fovCfg['2D'] or { X = 127, Y = 127 }
+                    if math.abs(dx) > box['X'] or math.abs(dy) > box['Y'] then continue end
+                end
+                -- 3D mode gated at shoot time
+            end
+
+            if screenDist < ClosestDist then
+                Closest = plr
+                ClosestDist = screenDist
+            end
+        end
+        return Closest
+    end
+
+    local function CheckAutoUntarget()
+        if not GenCfg()['Keybind List']['Auto Untarget'] then return end
+        if Self.Character and IsKnocked(Self.Character) then
+            Target = nil
+            IsToggled = false
+            return
+        end
+        if Target and not PassChecks(Target) then
+            Target = nil
+        end
+    end
+
+    -- ── 3D FOV raycast ──────────────────────────────────────────────
+    local fov3DParams = RaycastParams.new()
+    fov3DParams.FilterType = Enum.RaycastFilterType.Include
+    fov3DParams.FilterDescendantsInstances = { FOVPart }
+
+    local function Is3DInFOV()
+        local mouseLoc = UserInputService:GetMouseLocation()
+        local ray = Camera:ViewportPointToRay(mouseLoc.X, mouseLoc.Y)
+        local result = Workspace:Raycast(ray.Origin, ray.Direction * 2000, fov3DParams)
+        return result ~= nil and result.Instance == FOVPart
+    end
+
+    -- ── getMouseWorldHit hook ───────────────────────────────────────
+    local hookedFunctions = setmetatable({}, { __mode = "k" })
+    local hookedOriginals = setmetatable({}, { __mode = "k" })
+    local Hooking = false
+
+    local function InstallHookOn(fn)
+        if not fn or hookedFunctions[fn] then return end
+        hookedFunctions[fn] = true
+
+        local orig = hookfunction(fn, function(...)
+            if IsActive() and Target and Target.Character
+               and HitPosition.Magnitude > 0 then
+                local aimPart = GetClosestPartToPosition(Target.Character, HitPosition)
+                if aimPart then
+                    return aimPart, HitPosition, Vector3.new(0, 1, 0)
+                end
+            end
+            return orig(...)
+        end)
+
+        hookedOriginals[fn] = orig
+    end
+
+    local function HookSilentAim()
+        if Hooking then return end
+        Hooking = true
+        task.defer(function() Hooking = false end)
+
+        if type(filtergc) ~= "function" then
+            -- fall back to scanning the gc
+            if type(getgc) == "function" and type(debug) == "table" then
+                for _, obj in ipairs(getgc(true)) do
+                    if type(obj) == "table" and type(rawget(obj, "Name")) == "string"
+                       and rawget(obj, "Name") == "getMouseWorldHit" then
+                        -- not a function table, skip
+                    end
+                end
+            end
+            return
+        end
+
+        local ok, fn = pcall(function()
+            return filtergc("function", { Name = "getMouseWorldHit" }, true)
+        end)
+        if not ok or not fn then return end
+
+        -- filtergc may hand back a table of matches on some executors
+        if type(fn) == "table" then
+            for _, candidate in ipairs(fn) do
+                if type(candidate) == "function" then
+                    pcall(InstallHookOn, candidate)
+                end
+            end
+        else
+            pcall(InstallHookOn, fn)
+        end
+    end
+
+    HookSilentAim()
+
+    -- re-hook after respawn (GunClient closures are recreated)
+    table.insert(CleanupFns, (function()
+        local c = Self.CharacterAdded:Connect(function()
+            task.wait(1)
+            HookSilentAim()
+        end)
+        return function() if c and c.Connected then c:Disconnect() end end
+    end)())
+
+    -- also try once after a short delay, in case the module wasn't loaded yet
+    task.delay(3, HookSilentAim)
+
+    -- ── FOV drawing update ──────────────────────────────────────────
+    local function UpdateFOVDrawing()
+        local cfg = SACfg()
+        local fovCfg = cfg['Field Of View']
+        local mouseLoc = UserInputService:GetMouseLocation()
+
+        CircleFrame.Visible = false
+        BoxFrame.Visible    = false
+
+        if not fovCfg['Enabled'] or not fovCfg['Visible'] then
+            FOVPart.Position = Vector3.new(0, -9999, 0)
+            return
+        end
+
+        local mode = fovCfg['Mode']
+
+        if mode == 'Circle' then
+            local r = fovCfg['Circle'] or 120
+            CircleFrame.Size     = UDim2.fromOffset(r * 2, r * 2)
+            CircleFrame.Position = UDim2.fromOffset(mouseLoc.X, mouseLoc.Y)
+            CircleFrame.Visible  = true
+
+        elseif mode == '2D' then
+            local box = fovCfg['2D'] or { X = 127, Y = 127 }
+            BoxFrame.Size     = UDim2.fromOffset(box['X'] * 2, box['Y'] * 2)
+            BoxFrame.Position = UDim2.fromOffset(mouseLoc.X - box['X'], mouseLoc.Y - box['Y'])
+            BoxFrame.Visible  = true
+
+        elseif mode == '3D' then
+            local s3 = fovCfg['3D'] or { X = 12, Y = 12, Z = 12 }
+            FOVPart.Size         = Vector3.new(s3['X'], s3['Y'], s3['Z'])
+            FOVPart.Transparency = 0.7
+            if Target and Target.Character then
+                local hrp = Target.Character:FindFirstChild("HumanoidRootPart")
+                if hrp then FOVPart.Position = hrp.Position end
+            else
+                FOVPart.Position = Vector3.new(0, -9999, 0)
+            end
+        end
+    end
+
+    -- ── main loop ───────────────────────────────────────────────────
+    RunService.PreRender:Connect(function()
+        local cfg    = SACfg()
+        local genCfg = GenCfg()
+
+        if not cfg['Enabled'] then
+            Target      = nil
+            HitPosition = Vector3.new()
+            FOVPart.Position = Vector3.new(0, -9999, 0)
+            UpdateFOVDrawing()
+            return
+        end
+
+        CheckAutoUntarget()
+
+        local mode = genCfg['Targeting Mode']
+
+        if mode == 'Auto' then
+            Target = GetClosestPlayer()
+        elseif mode == 'Toggle' then
+            if IsToggled and (not Target or not Target.Character) then
+                Target = GetClosestPlayer()
+            end
+        end
+
+        if IsActive() and Target and PassChecks(Target) then
+            local hp = GetHitPosition()
+            if hp then HitPosition = hp end
+
+            -- 3D FOV hard gate: if enabled and the probe isn't under the mouse, stop.
+            if cfg['Field Of View']['Enabled'] and cfg['Field Of View']['Mode'] == '3D' then
+                if not Is3DInFOV() then
+                    HitPosition = Vector3.new()
+                end
+            end
+        else
+            HitPosition = Vector3.new()
+        end
+
+        UpdateFOVDrawing()
+    end)
+
+    -- ── keybind ─────────────────────────────────────────────────────
+    table.insert(CleanupFns, (function()
+        local c = UserInputService.InputBegan:Connect(function(input, processed)
+            if processed then return end
+            if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+
+            -- ignore if we're in Auto mode (keybind has no effect)
+            if GenCfg()['Targeting Mode'] == 'Auto' then return end
+
+            local bindName = GenCfg()['Keybind List']['Silent Aim']['Target Bind']
+            if type(bindName) ~= 'string' or bindName == '' then return end
+            local ok, kc = pcall(function() return Enum.KeyCode[bindName:upper()] end)
+            if not ok or not kc then return end
+
+            if input.KeyCode == kc then
+                IsToggled = not IsToggled
+                if IsToggled then
+                    Target = GetClosestPlayer()
+                else
+                    Target = nil
+                    HitPosition = Vector3.new()
+                end
+            end
+        end)
+        return function() if c and c.Connected then c:Disconnect() end end
+    end)())
+
+    -- ── expose state ────────────────────────────────────────────────
+    getgenv().__SilentAim = {
+        GetTarget = function() return Target end,
+        IsToggled = function() return IsActive() end,
+        GetHitPos = function() return HitPosition end,
+        SetTarget = function(p) Target = p end,
+        Rehook    = HookSilentAim,
+        Disable   = function()
+            IsToggled = false
+            Target = nil
+            HitPosition = Vector3.new()
+            for fn, orig in pairs(hookedOriginals) do
+                pcall(function() hookfunction(fn, orig) end)
+            end
+            for _, fn in ipairs(CleanupFns) do pcall(fn) end
+            CleanupFns = {}
+        end,
+    }
+end
+--=================================================================
+-- END HOOD CUSTOM SILENT AIM
 --=================================================================
 --=================================================================
 -- Range Extender
