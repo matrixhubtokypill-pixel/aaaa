@@ -412,7 +412,7 @@ do
         if not skinName or skinName == '' then return nil end
         return folder:FindFirstChild(skinName)
     end
-
+    
     local function ApplyModelOnHolder(holder, skinModel)
         if not holder or not skinModel then return end
         local handle = holder:FindFirstChild('Handle')
@@ -455,15 +455,24 @@ do
         if skinModel then ApplyModelOnHolder(tool, skinModel) end
     end
 
-    local function ApplyHandleSkin(character, handleFolderName)
-        local weaponName = HANDLE_MAP[handleFolderName]
+    local function ApplyToolSkin(tool)
+        if not tool or not tool:IsA('Tool') then return end
+        local weaponName = tool.Name:match('^%[(.+)%]$')
         if not weaponName then return end
-        local skinName = SkinNameFor('['..weaponName..']')
+
+        local skinName = SkinNameFor(tool.Name)
         if type(skinName) ~= 'string' or skinName == '' then return end
-        local handleFolder = character:FindFirstChild(handleFolderName)
-        if not handleFolder then return end
-        local skinModel = GetWrapSkinModel(HoodName(weaponName), skinName, 5)
-        if skinModel then ApplyModelOnHolder(handleFolder, skinModel) end
+
+        -- already has the right SkinModel? bail
+        local existing = tool:FindFirstChild('SkinModel')
+        if existing and existing:GetAttribute('SkinApplied') == skinName then return end
+
+        local skinModel = GetWrapSkinModel(HoodName(weaponName), skinName)
+        if skinModel then
+            ApplyModelOnHolder(tool, skinModel)
+            local sm = tool:FindFirstChild('SkinModel')
+            if sm then sm:SetAttribute('SkinApplied', skinName) end
+        end
     end
 
     local function ApplyAll(character)
@@ -6752,23 +6761,22 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 end)
 
 -- Update wall detection
+-- Update wall detection
 RunService.Heartbeat:Connect(function()
     local char, hum, root = getCharacter()
     if not char or not hum or hum.Health <= 0 then
         if isTouchingWallHop then
             isTouchingWallHop = false
-            -- print("[WallHop] Character dead/respawned, reset")
         end
         return
     end
 
-local touching, normal = checkForWallHop()
-if touching ~= isTouchingWallHop then
-    if touching then       -- ← never closed
-end
-isTouchingWallHop = touching
-currentWallHopNormal = normal
-end
+    local touching, normal = checkForWallHop()
+    if touching ~= isTouchingWallHop then
+        isTouchingWallHop = touching
+        currentWallHopNormal = normal
+    end
+end)
 
 Self.CharacterAdded:Connect(function(newChar)
     task.wait(0.2)
@@ -6776,5 +6784,4 @@ Self.CharacterAdded:Connect(function(newChar)
     currentWallHopNormal = nil
     canWallHop = true
     lastWallHopTime = 0
-end)
 end)
