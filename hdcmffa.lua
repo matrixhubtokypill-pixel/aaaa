@@ -46,7 +46,9 @@ if IS_DAHOOD then
         local_player.CharacterAdded:Connect(hookBodyEffects)
     end)
 end
-if game.PlaceId == 138995385694035  then -- hood custom 
+-- hood custom main + ffa
+local IS_HOOD_CUSTOM = game.PlaceId == 9825515356
+or game.PlaceId == 138995385694035 then -- hood custom 
     local O = getgenv().saved.Osiris
 
     local function Kill()
