@@ -6752,29 +6752,21 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 end)
 
 -- Update wall detection
+local _wallLastCheck = 0
 RunService.Heartbeat:Connect(function()
+    local now = os.clock()
+    if now - _wallLastCheck < 0.1 then return end   -- 10 Hz, not 60 Hz
+    _wallLastCheck = now
+
     local char, hum, root = getCharacter()
     if not char or not hum or hum.Health <= 0 then
-        if isTouchingWallHop then
-            isTouchingWallHop = false
-            -- print("[WallHop] Character dead/respawned, reset")
-        end
+        if isTouchingWallHop then isTouchingWallHop = false end
         return
     end
 
-local touching, normal = checkForWallHop()
-if touching ~= isTouchingWallHop then
-    if touching then       -- ← never closed
-end
-isTouchingWallHop = touching
-currentWallHopNormal = normal
-end
-
-Self.CharacterAdded:Connect(function(newChar)
-    task.wait(0.2)
-    isTouchingWallHop = false
-    currentWallHopNormal = nil
-    canWallHop = true
-    lastWallHopTime = 0
-end)
+    local touching, normal = checkForWallHop()
+    if touching ~= isTouchingWallHop then
+        isTouchingWallHop = touching
+        currentWallHopNormal = normal
+    end
 end)
