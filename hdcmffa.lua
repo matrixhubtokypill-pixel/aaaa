@@ -6774,7 +6774,7 @@ if not Processed then
     end
 
     local SilentBind      = (not isAutoMode) and toKeyCode(K['Silent Aim'] and K['Silent Aim']['Target Bind']) or nil
-    local AssistBind      = (not isAutoMode) and toKeyCode(K['Aim Assist'] and K['Aim Assist']['Bind'])         or nil
+    local AssistBind   = toKeyCode(K['Aim Assist'] and K['Aim Assist']['Bind'])
     local TriggerBind     = (not isAutoMode) and toKeyCode(K['Triggerbot'] and K['Triggerbot']['Bind'])          or nil
 
     if SilentBind and Input.KeyCode == SilentBind then
