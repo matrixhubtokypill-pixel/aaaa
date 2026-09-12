@@ -6891,28 +6891,28 @@ end
     end
 end
 
-    if Script.Locals.SP3 then
-        if targetingMode == 'Auto' or not Script.Locals.TriggerbotTarget
-           or not Script.Locals.TriggerbotTarget.Character then
-            local tbCfg = getgenv().saved.Osiris['Triggerbot']
-            Script.Locals.TriggerbotTarget = Script:GetClosestPlayerToCursor(
-                tbCfg['Max Distance'] * 100,
-                (tbCfg['FOV'] and tbCfg['FOV']['X'] or 3.5) * 50,
-                'Triggerbot'
-            )
-        end
+    if Script.Locals.SP3 or targetingMode == 'Auto' then
+    if targetingMode == 'Auto' or not Script.Locals.TriggerbotTarget
+       or not Script.Locals.TriggerbotTarget.Character then
+        local tbCfg = getgenv().saved.Osiris['Triggerbot']
+        Script.Locals.TriggerbotTarget = Script:GetClosestPlayerToCursor(
+            tbCfg['Max Distance'] * 100,
+            (tbCfg['FOV'] and tbCfg['FOV']['X'] or 3.5) * 50,
+            'Triggerbot'
+        )
     end
+end
 
-    if Script.Locals.SP2 then
-        if targetingMode == 'Auto' or not Script.Locals.AimAssistTarget
-           or not Script.Locals.AimAssistTarget.Character then
-            Script.Locals.AimAssistTarget = Script:GetClosestPlayerToCursor(
-                SilentAimOsiris['Max Distance'] * 700,
-                math.huge,
-                'Aim Assist'
-            )
-        end
+    if Script.Locals.SP2 or targetingMode == 'Auto' then
+    if targetingMode == 'Auto' or not Script.Locals.AimAssistTarget
+       or not Script.Locals.AimAssistTarget.Character then
+        Script.Locals.AimAssistTarget = Script:GetClosestPlayerToCursor(
+            SilentAimOsiris['Max Distance'] * 700,
+            math.huge,
+            'Aim Assist'
+        )
     end
+end
 
     if Script.Locals.SilentAimTarget and Script.Locals.SilentAimTarget.Character then
         Script.Locals.HitPosition = Script:GetHitPosition('Silent')
