@@ -5,27 +5,53 @@ if not LPH_OBFUSCATED then LPH_OBFUSCATED = false end
 
 local player_service = game["Players"]
 local local_player = player_service["LocalPlayer"]
-local dataFolder = local_player:WaitForChild("DataFolder")
 
-local shotland = dataFolder:WaitForChild("ShotLand")
-local shotreseter = dataFolder:WaitForChild("ShotReseter")
-local shottotal = dataFolder:WaitForChild("ShotTotal")
-local warning = dataFolder:WaitForChild("Warning")
-local lockflagged = dataFolder:WaitForChild("LockFlagged")
+-- ── game detection (needed early so we can gate hood-only code) ────
+local MarketplaceService = game:GetService("MarketplaceService")
+local okPI, placeInfo = pcall(function() return MarketplaceService:GetProductInfo(game.PlaceId) end)
+local GameName = (okPI and placeInfo and placeInfo.Name) or "Universal"
+local IS_DAHOOD = string.find(GameName, "Da Hood") ~= nil
+    or string.find(GameName, "Dee Hood") ~= nil
+    or string.find(GameName, "Der Hood") ~= nil
 
-local gunfiring = local_player.Character.BodyEffects.GunFiring
-local gunshotchanges = local_player.Character.BodyEffects.GunShotChanges
+-- ── Da Hood-only anti-cheat value spam ────────────────────────────
+if IS_DAHOOD then
+    task.spawn(function()
+        local dataFolder = local_player:WaitForChild("DataFolder", 10)
+        if not dataFolder then return end
 
-shottotal.Value = 0
-shotland.Value = 0
-shotreseter:GetPropertyChangedSignal("Value"):Connect(function() shotreseter.Value = 0 end)
-shottotal:GetPropertyChangedSignal("Value"):Connect(function() shottotal.Value = 0 end)
-shotland:GetPropertyChangedSignal("Value"):Connect(function() shotland.Value = 0 end)
-warning:GetPropertyChangedSignal("Value"):Connect(function() warning.Value = 0 end)
-lockflagged:GetPropertyChangedSignal("Value"):Connect(function() lockflagged.Value = 0 end)
-gunfiring:GetPropertyChangedSignal("Value"):Connect(function() gunfiring.Value = false end)
-gunshotchanges:GetPropertyChangedSignal("Value"):Connect(function() gunshotchanges.Value = 0 end)
+        local names = { "ShotLand", "ShotReseter", "ShotTotal", "Warning", "LockFlagged" }
+        for _, n in ipairs(names) do
+            local v = dataFolder:WaitForChild(n, 5)
+            if v then
+                pcall(function() v.Value = 0 end)
+                v:GetPropertyChangedSignal("Value"):Connect(function()
+                    pcall(function() v.Value = 0 end)
+                end)
+            end
+        end
 
+        -- BodyEffects values only exist once a character spawns
+        local function hookBodyEffects(char)
+            if not char then return end
+            local be = char:WaitForChild("BodyEffects", 10)
+            if not be then return end
+            for _, n in ipairs({ "GunFiring", "GunShotChanges" }) do
+                local v = be:WaitForChild(n, 5)
+                if v then
+                    local default = (n == "GunFiring") and false or 0
+                    pcall(function() v.Value = default end)
+                    v:GetPropertyChangedSignal("Value"):Connect(function()
+                        pcall(function() v.Value = default end)
+                    end)
+                end
+            end
+        end
+
+        if local_player.Character then hookBodyEffects(local_player.Character) end
+        local_player.CharacterAdded:Connect(hookBodyEffects)
+    end)
+end
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local Workspace = game.Workspace
@@ -37,7 +63,6 @@ local Self = Players.LocalPlayer
 local Mouse = Self:GetMouse()
 local Camera = game:FindFirstChild("Workspace").CurrentCamera
 local GuiInsetOffsetY = game:GetService('GuiService'):GetGuiInset().Y
-
 --=================================================================
 -- PANIC (Void / Ground  +  Automatic / Keybind)
 --=================================================================
@@ -2858,58 +2883,138 @@ end
 -- END NEW SKIN CHANGER
 --=================================================================
 --=================================================================
--- ANTI STOMP
+-- ANTI STOMP (hardened)
 --=================================================================
 task.spawn(function()
     local Players    = game:GetService("Players")
+    local RunService = game:GetService("RunService")
     local Workspace  = game.Workspace
 
     local LocalPlayer = Players.LocalPlayer
 
-    local KOConnection = nil
+    local connections = {}
+    local lastYeet = 0
+    local watching = nil
 
     local function GetCfg()
         return getgenv().saved.Osiris['Player']['Anti Stomp']
     end
 
-    local function SetupAntiStomp(Character)
-        if not Character then return end
+    local function IsEnabled()
+        local Cfg = GetCfg()
+        return (Cfg == true) or (type(Cfg) == 'table' and Cfg['Enabled'] == true)
+    end
 
-        -- disconnect previous hook if character changed
-        if KOConnection then
-            KOConnection:Disconnect()
-            KOConnection = nil
+    local function ClearConnections()
+        for _, c in ipairs(connections) do
+            pcall(function()
+                if c and c.Connected then c:Disconnect() end
+            end)
         end
+        table.clear(connections)
+    end
 
-        local BodyEffects = Character:WaitForChild('BodyEffects', 5)
-        if not BodyEffects then return end
+    local function Yeet(Character)
+        if not Character or not Character.Parent then return end
+        if not IsEnabled() then return end
 
-        local KO = BodyEffects:WaitForChild('K.O', 5)
-        if not KO then return end
+        local now = os.clock()
+        if now - lastYeet < 0.15 then return end
+        lastYeet = now
 
-        KOConnection = KO.Changed:Connect(function(Knocked)
-            local Cfg = GetCfg()
-            -- accept both `true` and `{ Enabled = true }`
-            local isEnabled = (Cfg == true) or (type(Cfg) == 'table' and Cfg['Enabled'])
-            if not isEnabled then return end
-            if not Knocked then return end
+        local HRP = Character:FindFirstChild('HumanoidRootPart')
+        local Humanoid = Character:FindFirstChildOfClass('Humanoid')
+        if not HRP then return end
 
-            local HRP = Character:FindFirstChild('HumanoidRootPart')
-            if not HRP then return end
-
-            -- yeet yourself into the void so no one can stomp / finish you
-            HRP.CFrame    = CFrame.new(0, -2147483647, 0)
-            HRP.Velocity  = Vector3.new(65536, 65534, 65536)
-
-            local Humanoid = Character:FindFirstChildOfClass('Humanoid')
-            if Humanoid then
-                for _ = 1, 10 do
-                    Humanoid.Health = 0
-                    task.wait()
+        -- multiple frames of force so server / physics can't fight it
+        task.spawn(function()
+            for i = 1, 12 do
+                if not HRP or not HRP.Parent then break end
+                pcall(function()
+                    HRP.AssemblyLinearVelocity  = Vector3.new(0, -1e9, 0)
+                    HRP.AssemblyAngularVelocity = Vector3.zero
+                    HRP.CFrame = CFrame.new(0, -5e8, 0)
+                    -- legacy velocity too (older clients)
+                    HRP.Velocity = Vector3.new(0, -1e9, 0)
+                end)
+                if Humanoid then
+                    pcall(function()
+                        Humanoid.Health = 0
+                        Humanoid:ChangeState(Enum.HumanoidStateType.Dead)
+                    end)
                 end
+                task.wait()
             end
         end)
     end
+
+    local function HookKO(Character, KO)
+        if not KO then return end
+        local c = KO:GetPropertyChangedSignal('Value'):Connect(function()
+            if KO.Value == true then
+                Yeet(Character)
+            end
+        end)
+        table.insert(connections, c)
+
+        -- also fire immediately if already knocked when we attach
+        if KO.Value == true then
+            Yeet(Character)
+        end
+    end
+
+    local function SetupAntiStomp(Character)
+        if not Character then return end
+        ClearConnections()
+        watching = Character
+
+        local function tryAttach()
+            if watching ~= Character then return end
+            local BodyEffects = Character:FindFirstChild('BodyEffects')
+            if not BodyEffects then return false end
+            local KO = BodyEffects:FindFirstChild('K.O')
+            if not KO then return false end
+            HookKO(Character, KO)
+            return true
+        end
+
+        -- immediate try
+        if tryAttach() then return end
+
+        -- BodyEffects can be late / recreated — keep watching
+        local childConn = Character.ChildAdded:Connect(function(child)
+            if watching ~= Character then return end
+            if child.Name == 'BodyEffects' then
+                task.defer(function()
+                    local KO = child:FindFirstChild('K.O') or child:WaitForChild('K.O', 3)
+                    if KO then HookKO(Character, KO) end
+                end)
+            end
+        end)
+        table.insert(connections, childConn)
+
+        -- fallback poll for a few seconds in case ChildAdded races
+        task.spawn(function()
+            for _ = 1, 40 do
+                if watching ~= Character then return end
+                if tryAttach() then return end
+                task.wait(0.1)
+            end
+        end)
+    end
+
+    -- continuous safety net: if somehow KO is true and we missed the signal
+    RunService.Heartbeat:Connect(function()
+        if not IsEnabled() then return end
+        local Character = LocalPlayer.Character
+        if not Character then return end
+        local BodyEffects = Character:FindFirstChild('BodyEffects')
+        if not BodyEffects then return end
+        local KO = BodyEffects:FindFirstChild('K.O')
+        if KO and KO.Value == true then
+            Yeet(Character)
+        end
+    end)
 
     if LocalPlayer.Character then
         task.spawn(SetupAntiStomp, LocalPlayer.Character)
@@ -2919,6 +3024,7 @@ end)
 --=================================================================
 -- END ANTI STOMP
 --=================================================================
+ 
 
 --=================================================================
 -- Range Extender
@@ -3958,7 +4064,10 @@ local function GameFunctions()
     }
 end
 
-local Games = { [LPH_ENCSTR('Da Hood')] = { HoodGame = true, Functions = GameFunctions() } }
+local Games = { [LPH_ENCSTR('Da Hood')] = { HoodGame = true, Functions = GameFunctions() },
+                [LPH_ENCSTR('a literal baseplate.')] = { HoodGame = false, Functions = GameFunctions() },
+                [LPH_ENCSTR('Universal')] = { HoodGame = false, Functions = GameFunctions() }
+            }
 
 local MarketplaceService = game:GetService("MarketplaceService")
 local Success, Info = pcall(function() return MarketplaceService:GetProductInfo(game.PlaceId) end)
@@ -5471,6 +5580,53 @@ end
     end)
     RBXConnection(RunService.PreRender, LPH_NO_VIRTUALIZE(function()
     local targetingMode = getgenv().saved.Osiris['General']['Targeting Mode']
+        --===== AUTO-UNTARGET + UNTOGGLE ON KNOCK / DEATH =====
+    if getgenv().saved.Osiris['General']['Keybind List']['Auto Untarget'] then
+        local function isDeadOrKnocked(p)
+            if not p then return false end
+            local char = (typeof(p) == "Instance" and p:IsA("Player")) and p.Character or p
+            if not char or not char.Parent then return true end
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if not hum or hum.Health <= 0 then return true end
+            return CurrentGame.Functions.IsKnocked(char)
+        end
+
+        -- if WE are knocked/dead, disengage every feature + clear all targets
+        local selfChar = Self.Character
+        local selfHum  = selfChar and selfChar:FindFirstChildOfClass("Humanoid")
+        if not selfChar or not selfHum or selfHum.Health <= 0
+           or CurrentGame.Functions.IsKnocked(selfChar) then
+            Script.Locals.SP, Script.Locals.SP2, Script.Locals.SP3 = false, false, false
+            Script.Locals.TriggerState = false
+            Script.Locals.SilentAimTarget  = nil
+            Script.Locals.AimAssistTarget  = nil
+            Script.Locals.TriggerbotTarget = nil
+            Script.Locals.HitPosition      = Vector3.new()
+            if SilentAimPart then SilentAimPart.Position = Vector3.zero end
+            if TriggerPart   then TriggerPart.Position   = Vector3.zero end
+        else
+            -- per-feature: if that feature's target is knocked/dead, drop it AND untoggle it
+            if Script.Locals.SP and isDeadOrKnocked(Script.Locals.SilentAimTarget) then
+                Script.Locals.SP = false
+                Script.Locals.SilentAimTarget = nil
+                Script.Locals.HitPosition = Vector3.new()
+                if SilentAimPart then SilentAimPart.Position = Vector3.zero end
+            end
+
+            if Script.Locals.SP2 and isDeadOrKnocked(Script.Locals.AimAssistTarget) then
+                Script.Locals.SP2 = false
+                Script.Locals.AimAssistTarget = nil
+            end
+
+            if Script.Locals.SP3 and isDeadOrKnocked(Script.Locals.TriggerbotTarget) then
+                Script.Locals.SP3 = false
+                Script.Locals.TriggerState = false
+                Script.Locals.TriggerbotTarget = nil
+                if TriggerPart then TriggerPart.Position = Vector3.zero end
+            end
+        end
+    end
+    --===== END AUTO-UNTARGET + UNTOGGLE =====
 
     -- Re-acquire targets every frame whenever the feature is flagged ON.
     -- This fixes "toggle is on but nothing happens" after target death / out of FOV.
