@@ -47,7 +47,7 @@ if IS_DAHOOD then
     end)
 end
 -- hood custom main + ffa
-local IS_HOOD_CUSTOM = game.PlaceId == 9825515356
+local IS_HOOD_CUSTOM = game.PlaceId == 138995385694035
 or game.PlaceId == 138995385694035 then -- hood custom 
     local O = getgenv().saved.Osiris
 
