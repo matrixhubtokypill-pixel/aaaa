@@ -46,14 +46,13 @@ if IS_DAHOOD then
         local_player.CharacterAdded:Connect(hookBodyEffects)
     end)
 end
-if game.PlaceId == 138995385694035 then -- hood custom 
+if game.PlaceId == 138995385694035  then -- hood custom 
     local O = getgenv().saved.Osiris
 
     local function Kill()
         local ok = pcall(function()
             -- Combat
             O['Silent Aim']['Enabled']                              = false
-            O['Aim Assist']['Enabled']                              = false
             O['Future']['Active']                                   = false
             O['Anti Future']['Active']                              = false
 
@@ -66,22 +65,13 @@ if game.PlaceId == 138995385694035 then -- hood custom
             O['Hitbox Expander']['Enabled']                         = false
             O['Player']['Anti Stomp']                               = false
             O['Player']['Panic']['Enabled']                         = false
-            O['Player']['Wall Hop']                                 = false
 
-            -- Kill the two biggest background loops on this place
-            O['Player']['Avatar']['Enabled']                        = false
-            O['Weapon Modifications']['Skin Changer']['Enabled']    = false
-
-            -- Status UI heartbeat
-            O['General']['Show Status']                             = false
-
-            -- Live side effects
+            -- Also kill any live side-effects / visuals
             local S = getgenv()
             if S.antifuture and S.antifuture.active and S.antifuture.active() then
-                pcall(S.antifuture.toggle)
+                pcall(S.antifuture.toggle)   -- flips it off
             end
             if S.future and S.future.stop then pcall(S.future.stop) end
-            if S.avatar_cleanup then pcall(S.avatar_cleanup) end
         end)
         return ok
     end
@@ -276,10 +266,10 @@ task.spawn(function()
 end)
 -- panic above
 --=================================================================
--- HOOD CUSTOM SKIN CHANGER (placeId 138995385694035)
+-- HOOD CUSTOM SKIN CHANGER (placeId 138995385694035 )
 --=================================================================
 do
-    if game.PlaceId ~= 138995385694035 then return end
+    if game.PlaceId ~= 138995385694035  then return end
 
     local Players           = game:GetService("Players")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -296,6 +286,7 @@ do
         ["Shotgun"]          = "Shotgun",
         ["SMG"]              = "SMG",
     }
+
     local function HoodName(weaponName)
         return HOOD_FOLDER[weaponName] or weaponName
     end
@@ -306,7 +297,7 @@ do
         REV_HANDLE = "Revolver",
     }
 
-    -- beam codes keyed by hood folder name
+    -- beam codes keyed by hood folder name (what the game writes)
     local BEAM_CODES = {
         ["DoubleBarrel"]    = "109d1326878cc594bc1bb42d126250810999782f",
         ["Revolver"]        = "539db315b53f77390c0aa74773158e25bedcdd6e",
@@ -319,10 +310,12 @@ do
         local s = getgenv().saved
         return s and s.Osiris and s.Osiris['Weapon Modifications'] and s.Osiris['Weapon Modifications']['Skin Changer']
     end
+
     local function GetHoodSkins()
         local cfg = GetCfg()
         return cfg and cfg['Hood Custom'] or nil
     end
+
     local function SkinNameFor(toolName)
         local hood = GetHoodSkins()
         if not hood then return nil end
@@ -349,21 +342,27 @@ do
                 for _, code in pairs(BEAM_CODES) do
                     payload[code] = { Name = color }
                 end
-                pcall(function() bulletBeams.Value = HttpService:JSONEncode(payload) end)
+                pcall(function()
+                    bulletBeams.Value = HttpService:JSONEncode(payload)
+                end)
             end
         end
+
         if equippedBulletBeams and equippedBulletBeams:IsA('StringValue') then
             local payload = {}
             for weapon, code in pairs(BEAM_CODES) do
                 payload['['..weapon..']'] = code
             end
-            pcall(function() equippedBulletBeams.Value = HttpService:JSONEncode(payload) end)
+            pcall(function()
+                equippedBulletBeams.Value = HttpService:JSONEncode(payload)
+            end)
         end
     end
 
     local function IsBasePart(x)
         return typeof(x) == 'Instance' and x:IsA('BasePart')
     end
+
     local function EnsurePrimaryPart(model)
         if not model or not model:IsA('Model') then return nil end
         if not IsBasePart(model.PrimaryPart) then
@@ -372,6 +371,7 @@ do
         end
         return model.PrimaryPart
     end
+
     local function PrepParts(model, isKnife)
         for _, part in ipairs(model:GetDescendants()) do
             if part:IsA('BasePart') then
@@ -392,6 +392,7 @@ do
             end
         end
     end
+
     local function WeldParts(a, b)
         if IsBasePart(a) and IsBasePart(b) then
             local weld = Instance.new('WeldConstraint')
@@ -402,39 +403,22 @@ do
         end
     end
 
-    -- ── no WaitForChild, tries multiple folder name variants ─────
-    local function GetWrapSkinModel(weaponName, skinName)
-        local wraps = ReplicatedStorage:FindFirstChild('Wraps')
+    local function GetWrapSkinModel(weaponName, skinName, timeout)
+        timeout = timeout or 5
+        local wraps = ReplicatedStorage:FindFirstChild('Wraps') or ReplicatedStorage:WaitForChild('Wraps', timeout)
         if not wraps then return nil end
+        local folder = wraps:FindFirstChild('['..weaponName..']')
+        if not folder then return nil end
         if not skinName or skinName == '' then return nil end
-
-        local candidates = {
-            '['..weaponName..']',
-            '['..weaponName:gsub('-', '')..']',
-            '['..weaponName:gsub('-', ' ')..']',
-            '['..weaponName:gsub(' ', '')..']',
-            '['..weaponName:gsub(' ', '-')..']',
-        }
-        for _, folderName in ipairs(candidates) do
-            local folder = wraps:FindFirstChild(folderName)
-            if folder then
-                local skin = folder:FindFirstChild(skinName)
-                if skin then return skin end
-            end
-        end
-        return nil
+        return folder:FindFirstChild(skinName)
     end
 
-    local function ApplyModelOnHolder(holder, skinModel, skinName)
+    local function ApplyModelOnHolder(holder, skinModel)
         if not holder or not skinModel then return end
         local handle = holder:FindFirstChild('Handle')
         if not IsBasePart(handle) then return end
-
-        -- already has this exact skin? bail early
         local old = holder:FindFirstChild('SkinModel')
-        if old and old:GetAttribute('SkinApplied') == skinName then return end
         if old then old:Destroy() end
-
         local clone = skinModel:Clone()
         clone.Name = 'SkinModel'
         local primary = EnsurePrimaryPart(clone)
@@ -447,57 +431,39 @@ do
             if part:IsA('BasePart') then WeldParts(handle, part) end
         end
         handle.Transparency = 1
-        clone:SetAttribute('SkinApplied', skinName or '')
     end
 
-    -- ── Tool skin (used for knife and any tool-slot weapons) ─────
     local function ApplyToolSkin(tool)
         if not tool or not tool:IsA('Tool') then return end
         local weaponName = tool.Name:match('^%[(.+)%]$')
         if not weaponName then return end
         local skinName = SkinNameFor(tool.Name)
         if type(skinName) ~= 'string' or skinName == '' then return end
-
-        local existing = tool:FindFirstChild('SkinModel')
-        if existing and existing:GetAttribute('SkinApplied') == skinName then return end
-
-        local skinModel = GetWrapSkinModel(HoodName(weaponName), skinName)
-        if skinModel then ApplyModelOnHolder(tool, skinModel, skinName) end
+        local skinModel = GetWrapSkinModel(HoodName(weaponName), skinName, 5)
+        if skinModel then ApplyModelOnHolder(tool, skinModel) end
     end
 
-    -- ── Knife uses ReplicatedStorage.Knives instead of Wraps ─────
     local function ApplyKnifeSkin(tool)
         if not tool or not tool:IsA('Tool') then return end
         if tool.Name ~= '[Knife]' then return end
         local hood = GetHoodSkins()
         local knifeSkin = hood and hood['[Knife]']
         if not knifeSkin or knifeSkin == '' then return end
-
-        local existing = tool:FindFirstChild('SkinModel')
-        if existing and existing:GetAttribute('SkinApplied') == knifeSkin then return end
-
         local knives = ReplicatedStorage:FindFirstChild('Knives')
         if not knives then return end
         local skinModel = knives:FindFirstChild(knifeSkin)
-        if skinModel then ApplyModelOnHolder(tool, skinModel, knifeSkin) end
+        if skinModel then ApplyModelOnHolder(tool, skinModel) end
     end
 
-    -- ── CHARACTER-ATTACHED HANDLE SKIN (this is what DB uses!) ──
     local function ApplyHandleSkin(character, handleFolderName)
-        if not character then return end
         local weaponName = HANDLE_MAP[handleFolderName]
         if not weaponName then return end
         local skinName = SkinNameFor('['..weaponName..']')
         if type(skinName) ~= 'string' or skinName == '' then return end
-
         local handleFolder = character:FindFirstChild(handleFolderName)
         if not handleFolder then return end
-
-        local existing = handleFolder:FindFirstChild('SkinModel')
-        if existing and existing:GetAttribute('SkinApplied') == skinName then return end
-
-        local skinModel = GetWrapSkinModel(HoodName(weaponName), skinName)
-        if skinModel then ApplyModelOnHolder(handleFolder, skinModel, skinName) end
+        local skinModel = GetWrapSkinModel(HoodName(weaponName), skinName, 5)
+        if skinModel then ApplyModelOnHolder(handleFolder, skinModel) end
     end
 
     local function ApplyAll(character)
@@ -542,25 +508,14 @@ do
         end)
     end)
 
-    -- Reapply periodically (throttled — once per second, not 60/s)
-    local lastRescan = 0
+    -- Reapply periodically
     RunService.Heartbeat:Connect(function()
-        local now = os.clock()
-        if now - lastRescan < 1 then return end
-        lastRescan = now
-
         local char = LocalPlayer.Character
         if not char then return end
-
         for _, tool in ipairs(char:GetChildren()) do
             if tool:IsA('Tool') then
                 ApplyToolSkin(tool)
                 ApplyKnifeSkin(tool)
-            end
-        end
-        for handleName in pairs(HANDLE_MAP) do
-            if char:FindFirstChild(handleName) then
-                ApplyHandleSkin(char, handleName)
             end
         end
     end)
@@ -3545,7 +3500,7 @@ do
         end
     end
 
-    -- ⚠ Cleanup the Hood Custom Skin Changer (placeId 138995385694035)
+    -- ⚠ Cleanup the Hood Custom Skin Changer (placeId 138995385694035 )
     local function CleanupHoodCustomSkins()
         local lp = Players.LocalPlayer
         if not lp then return end
@@ -3793,6 +3748,635 @@ end
 --=================================================================
 -- END UNINJECT
 --=================================================================
+--=================================================================
+-- Range Extender
+--=================================================================
+task.spawn(function()
+    local RangeCfg = getgenv().saved.Osiris['Weapon Modifications']['Range Extender']
+    if not RangeCfg or not RangeCfg['Enabled'] then return end
+
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local LocalPlayer       = game:GetService("Players").LocalPlayer
+    local RunService        = game:GetService("RunService")
+
+    local function GetRangeCfg()
+        return getgenv().saved.Osiris['Weapon Modifications']['Range Extender']
+    end
+
+    local function ApplyRangeToTool(Tool)
+        if not Tool or not Tool:IsA('Tool') then return end
+        local RangeValueObj = Tool:FindFirstChild('Range')
+        if not RangeValueObj or not RangeValueObj:IsA('ValueBase') then return end
+
+        local BaseRange = Tool:GetAttribute('__BaseRange')
+        if type(BaseRange) ~= 'number' then
+            BaseRange = RangeValueObj.Value
+            Tool:SetAttribute('__BaseRange', BaseRange)
+        end
+
+        local CurrentCfg = GetRangeCfg()
+        local ExtraRange = (CurrentCfg and CurrentCfg['Enabled'] and CurrentCfg['Value']) or 0
+        RangeValueObj.Value = BaseRange + ExtraRange
+    end
+
+    local function SyncRangeTools()
+        local Character = LocalPlayer.Character
+        if Character then
+            for _, Tool in next, Character:GetChildren() do
+                ApplyRangeToTool(Tool)
+            end
+        end
+        local Backpack = LocalPlayer:FindFirstChild('Backpack')
+        if Backpack then
+            for _, Tool in next, Backpack:GetChildren() do
+                ApplyRangeToTool(Tool)
+            end
+        end
+    end
+
+    SyncRangeTools()
+    RunService.Heartbeat:Connect(function() SyncRangeTools() end)
+    LocalPlayer.CharacterAdded:Connect(function() task.wait(1); SyncRangeTools() end)
+    LocalPlayer.CharacterAdded:Connect(function(char)
+        char.ChildAdded:Connect(function(v)
+            if v:IsA('Tool') then task.defer(function() ApplyRangeToTool(v) end) end
+        end)
+    end)
+    if LocalPlayer.Character then
+        LocalPlayer.Character.ChildAdded:Connect(function(v)
+            if v:IsA('Tool') then task.defer(function() ApplyRangeToTool(v) end) end
+        end)
+    end
+    LocalPlayer.Backpack.ChildAdded:Connect(function(v)
+        if v:IsA('Tool') then task.defer(function() ApplyRangeToTool(v) end) end
+    end)
+
+    -- ── GunHandler hook (wraps shoot + getAim) ────────────────────
+    task.spawn(function()
+        local ModulesFolder = ReplicatedStorage:FindFirstChild('Modules') or ReplicatedStorage:WaitForChild('Modules', 5)
+        if not ModulesFolder then return end
+        local ok, GunModule = pcall(function() return ModulesFolder:WaitForChild('GunHandler', 5) end)
+        if not ok or not GunModule then return end
+        local okR, GunHandler = pcall(require, GunModule)
+        if not okR or type(GunHandler) ~= 'table' then return end
+
+        if type(GunHandler.shoot) == 'function' and not GunHandler.__RangeWrapped then
+            local origShoot = GunHandler.shoot
+            GunHandler.shoot = function(args)
+                local CurrentCfg = GetRangeCfg()
+                local EnhVal = (CurrentCfg and CurrentCfg['Enabled'] and CurrentCfg['Value']) or 0
+                if args and args.Range then args.Range = args.Range + EnhVal end
+                return origShoot(args)
+            end
+            GunHandler.__RangeWrapped = true
+        end
+
+        if type(GunHandler.getAim) == 'function' and not GunHandler.__RangeAimWrapped then
+            local origGetAim = GunHandler.getAim
+            GunHandler.getAim = function(hit, dist)
+                local CurrentCfg = GetRangeCfg()
+                local EnhVal = (CurrentCfg and CurrentCfg['Enabled'] and CurrentCfg['Value']) or 0
+                return origGetAim(hit, dist + EnhVal)
+            end
+            GunHandler.__RangeAimWrapped = true
+        end
+    end)
+
+    -- ── Advanced: bytecode-level range patch (cider-style) ────────
+    if RangeCfg['Advanced'] and getgc and islclosure and getfunctionhash and debug then
+        task.spawn(function()
+            local EnhVal = (GetRangeCfg()['Value']) or 12
+            for _, obj in getgc() do
+                if type(obj) == 'function' and islclosure(obj) then
+                    if getfunctionhash(obj) == 'f01a12bbf0fe1944cdca10883eb444581d9a6bbd8f40472dbf23b6b39fd412f21769d9bfccef6b899f802bae846d2bb3' then
+                        local uv = debug.getupvalue(obj, 10)
+                        if uv then uv.Value = EnhVal end
+                        debug.setupvalue(obj, 2, 0)
+                        debug.setconstant(obj, 26, 0)
+                        debug.setconstant(obj, 27, 0)
+                    end
+                end
+            end
+        end)
+    end
+end)
+--=================================================================
+-- END Range Extender
+--=================================================================
+
+
+local Players    = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ws         = workspace
+
+local me = Players.LocalPlayer
+
+-- ── hardcoded cache constants ──────────────────────────────────────
+local H_HISTORY_SIZE     = 8
+local H_SAMPLE_INTERVAL  = 0.03
+local H_VELOCITY_CAP     = 350
+local H_ACCELERATION_CAP = 1500
+local H_NETWORK_INTERVAL = 0.10
+local H_ACCEL_SCALE      = 0.5
+
+-- ── config access ──────────────────────────────────────────────────
+local function cfg()
+    local s = getgenv().saved
+    return s and s.Osiris and s.Osiris['Future']
+end
+
+local function weaponClass(name)
+    if not name then return 'Others' end
+    if name == '[Double-Barrel SG]'  or name == '[TacticalShotgun]'
+    or name == '[Tactical Shotgun]'  or name == '[Tactical-Shotgun]'
+    or name == '[Shotgun]'           or name == '[Drum-Shotgun]' then
+        return 'Shotguns'
+    end
+    if name == '[Revolver]' or name == '[Silencer]'
+    or name == '[Glock]'    or name == '[Deagle]' then
+        return 'Pistols'
+    end
+    return 'Others'
+end
+
+-- ── position cache ─────────────────────────────────────────────────
+local cache      = {}
+local pool       = {}
+local poolSize   = 0
+local lastUpdate = 0
+
+local function acquire(pos, t)
+    local e
+    if poolSize > 0 then
+        e = pool[poolSize]; pool[poolSize] = nil; poolSize = poolSize - 1
+        e.pos = pos; e.t = t
+    else
+        e = { pos = pos, t = t }
+    end
+    return e
+end
+
+local function release(e)
+    poolSize = poolSize + 1
+    pool[poolSize] = e
+end
+
+local function updateCache()
+    local c = cfg()
+    if not c or not c['Active'] then return end
+    local now = os.clock()
+    if (now - lastUpdate) < H_SAMPLE_INTERVAL then return end
+    lastUpdate = now
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= me and plr.Character then
+            local hrp = plr.Character:FindFirstChild('HumanoidRootPart')
+            if hrp then
+                local list = cache[plr]
+                if not list then list = {}; cache[plr] = list end
+                local head = list[1]
+                if not head or (now - head.t) >= H_SAMPLE_INTERVAL then
+                    table.insert(list, 1, acquire(hrp.Position, now))
+                    if #list > H_HISTORY_SIZE then
+                        release(list[#list])
+                        list[#list] = nil
+                    end
+                end
+            end
+        end
+    end
+    for plr in pairs(cache) do
+        if not plr.Parent then cache[plr] = nil end
+    end
+end
+
+-- ── smoothed motion ────────────────────────────────────────────────
+local function smoothedMotion(plr)
+    local list = cache[plr]
+    if not list or #list < 2 then return Vector3.new(), Vector3.new() end
+
+    local newest = list[1]
+    local idx    = math.min(#list, 4)
+    local oldest = list[idx]
+    local dt     = newest.t - oldest.t
+    if dt <= 0.001 then return Vector3.new(), Vector3.new() end
+
+    local vel = (newest.pos - oldest.pos) / dt
+    local acc = Vector3.new()
+
+    if #list >= 4 then
+        local recentDt = list[1].t - list[2].t
+        local olderDt  = list[3].t - list[4].t
+        local span     = ((list[1].t + list[2].t) - (list[3].t + list[4].t)) * 0.5
+        if recentDt > 0.001 and olderDt > 0.001 and span > 0.001 then
+            local recentVel = (list[1].pos - list[2].pos) / recentDt
+            local olderVel  = (list[3].pos - list[4].pos) / olderDt
+            acc = (recentVel - olderVel) / span
+        end
+    end
+
+    if vel.Magnitude > H_VELOCITY_CAP     then vel = Vector3.new() end
+    if acc.Magnitude > H_ACCELERATION_CAP then acc = Vector3.new() end
+    return vel, acc
+end
+
+local function deltaVelocity(plr)
+    return smoothedMotion(plr)
+end
+
+-- ── network sampling ───────────────────────────────────────────────
+local net = { last = 0, ping = 0, jitter = 0 }
+
+local function sampleNetwork()
+    local c = cfg()
+    if not c or not c['Active'] then return end
+    local now = os.clock()
+    if (now - net.last) < H_NETWORK_INTERVAL then return end
+    net.last = now
+
+    local ok, result = pcall(function() return me:GetNetworkPing() end)
+    if not ok or type(result) ~= 'number' or result < 0 then return end
+
+    local ping = result > 1 and result / 1000 or result
+    local alpha = 0.15
+
+    if net.ping <= 0 then
+        net.ping = ping
+        net.jitter = 0
+    else
+        net.jitter = net.jitter + (math.abs(ping - net.ping) - net.jitter) * alpha
+        net.ping   = net.ping   + (ping - net.ping) * alpha
+    end
+end
+
+-- ── Auto values ────────────────────────────────────────────────────
+local smoothState = { lastTarget = nil, lastClass = nil, current = nil }
+
+local function getAutoValues(target, toolName)
+    local c = cfg()
+    if not c then return Vector3.new(), Vector3.new(), Vector3.new() end
+    local L = c['Auto']
+
+    local class = weaponClass(toolName)
+    if smoothState.lastTarget ~= target or smoothState.lastClass ~= class then
+        smoothState.lastTarget = target
+        smoothState.lastClass  = class
+        smoothState.current    = nil
+    end
+
+    local baseline = L[class] or L['Others']
+    local futureTime = baseline
+        + net.ping   * (L['Ping Scale'] or 0.5)
+        + 0.01
+        + net.jitter * (L['Jitter Scale'] or 0.5)
+
+    futureTime = math.clamp(futureTime, L['Min Time'] or 0.01, L['Max Time'] or 0.20)
+    local desired = Vector3.new(futureTime, futureTime, futureTime)
+    local alpha   = L['Smoothing'] or 0.15
+
+    local current = smoothState.current
+    if current then
+        current = current + (desired - current) * alpha
+    else
+        current = desired
+    end
+    smoothState.current = current
+
+    local vel, acc = smoothedMotion(target)
+    if vel.Magnitude < 2 then
+        vel = Vector3.new()
+        acc = Vector3.new()
+    end
+    return current, vel, acc
+end
+
+-- ── public: predict ────────────────────────────────────────────────
+local function predict(target, toolName, basePos)
+    local c = cfg()
+    if not c or not c['Active'] or not target or not basePos then
+        return basePos
+    end
+    local char = target.Character
+    if not char or not char:FindFirstChild('HumanoidRootPart') then
+        return basePos
+    end
+
+    if c['Mode'] == 'Manual' then
+        local M = c['Manual']
+        local vel = deltaVelocity(target)
+        return basePos + vel * Vector3.new(M['X'], M['Y'], M['Z'])
+    end
+
+    local values, vel, acc = getAutoValues(target, toolName)
+
+    local predicted = basePos + vel * values
+    predicted = predicted + Vector3.new(
+        acc.X * (values.X * values.X) * H_ACCEL_SCALE,
+        acc.Y * (values.Y * values.Y) * H_ACCEL_SCALE,
+        acc.Z * (values.Z * values.Z) * H_ACCEL_SCALE
+    )
+    return predicted
+end
+
+-- ── lifecycle ──────────────────────────────────────────────────────
+local heartbeatConn
+
+local function start()
+    if heartbeatConn then return end
+    heartbeatConn = RunService.Heartbeat:Connect(function()
+        local c = cfg()
+        if not c or not c['Active'] then return end
+        updateCache()
+        sampleNetwork()
+    end)
+end
+
+local function stop()
+    if heartbeatConn then
+        heartbeatConn:Disconnect()
+        heartbeatConn = nil
+    end
+    for _, list in pairs(cache) do
+        for i = #list, 1, -1 do release(list[i]); list[i] = nil end
+    end
+    cache = {}
+    pool = {}
+    poolSize = 0
+    net.ping, net.jitter, net.last = 0, 0, 0
+    smoothState.current    = nil
+    smoothState.lastTarget = nil
+    smoothState.lastClass  = nil
+end
+
+local function unload()
+    stop()
+    if getgenv then getgenv().future_unload = nil end
+end
+
+if getgenv then
+    getgenv().future_unload = unload
+    getgenv().future = {
+        predict = predict,
+        config  = cfg,
+        active  = function() return heartbeatConn ~= nil end,
+        start   = start,
+        stop    = stop,
+        unload  = unload,
+    }
+end
+
+do
+    local c = cfg()
+    if c and c['Active'] then task.defer(start) end
+end
+-- Velocity drift. Reads its settings from getgenv().saved.Osiris['Anti Future'].
+-- Toggle key comes from Osiris['General']['Keybind List']['Misc']['Anti Future'].
+
+local Players    = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS        = game:GetService("UserInputService")
+local CoreGui    = game:GetService("CoreGui")
+local ws         = workspace
+
+local me  = Players.LocalPlayer
+local cam = ws.CurrentCamera
+
+-- ── config access ──────────────────────────────────────────────────
+local function cfg()
+    local s = getgenv().saved
+    return s and s.Osiris and s.Osiris['Anti Future']
+end
+
+local function getBindKey()
+    local s = getgenv().saved
+    local k = s and s.Osiris
+        and s.Osiris['General']
+        and s.Osiris['General']['Keybind List']
+        and s.Osiris['General']['Keybind List']['Misc']
+        and s.Osiris['General']['Keybind List']['Misc']['Anti Future']
+    return k or 'N'
+end
+
+-- ── runtime state ──────────────────────────────────────────────────
+local live        = false
+local hbConn      = nil
+local drawConn    = nil
+local inputConn   = nil
+local pendingBump = false
+local srvPos, srvVel, srvTime
+
+local JUMP = Enum.HumanoidStateType.Jumping
+local FALL = Enum.HumanoidStateType.Freefall
+
+local rnd, mx = math.random, math.max
+
+local function signed(lo, hi)
+    local v = rnd(lo, hi)
+    return rnd(0, 1) == 0 and -v or v
+end
+
+local function bump()
+    local c = cfg()
+    if not c or not c['Reactive']['Enabled'] or not live then return end
+    pendingBump = true
+end
+
+local function consumeBump()
+    if pendingBump then
+        pendingBump = false
+        local c = cfg()
+        return (c and c['Reactive']['Factor']) or 1
+    end
+    return 1
+end
+
+-- ── drift patterns ─────────────────────────────────────────────────
+local synth = {}
+
+synth.Random = function(str, spr, useY, real)
+    return Vector3.new(
+        signed(str, str * spr),
+        useY and signed(str, str * spr) or 0,
+        signed(str, str * spr)
+    )
+end
+
+synth.Vertical = function(str, spr, useY, real)
+    return Vector3.new(0, useY and signed(str, str * spr) or 0, 0)
+end
+
+synth.Backward = function(str, spr, useY, real, hrp)
+    local flat = Vector3.new(real.X, 0, real.Z)
+    local back = flat.Magnitude > 1 and -flat.Unit or -hrp.CFrame.LookVector
+    local m    = rnd(str, str * spr)
+    local y    = useY and signed(str, str * spr) or 0
+    return Vector3.new(back.X * m, y, back.Z * m)
+end
+
+synth.Counter = function(str, spr, useY, real)
+    local g  = ws.Gravity or 196.2
+    local sc = str / mx(real.Magnitude, 16)
+    local kv = -real * sc
+    local y  = useY and (kv.Y - g * rnd(str, str * spr) / 100) or 0
+    return Vector3.new(kv.X, y, kv.Z)
+end
+
+-- ── core loop ──────────────────────────────────────────────────────
+local function stop()
+    live = false
+    pendingBump = false
+    srvPos, srvVel, srvTime = nil, nil, nil
+    if hbConn then hbConn:Disconnect(); hbConn = nil end
+end
+
+local function start()
+    if live then return end
+    live = true
+    pendingBump = false
+
+    hbConn = RunService.Heartbeat:Connect(function()
+        local c = cfg()
+        if not c or not c['Active'] then stop() return end
+        if not live then stop() return end
+
+        local m   = c['Motion']
+        local ch  = me.Character
+        local hrp = ch and ch:FindFirstChild('HumanoidRootPart')
+        local hum = ch and ch:FindFirstChildOfClass('Humanoid')
+        if not hrp then return end
+
+        if m['Mid air'] and hum then
+            local s = hum:GetState()
+            if s ~= JUMP and s ~= FALL then
+                srvPos, srvVel, srvTime = hrp.Position, nil, nil
+                return
+            end
+        end
+
+        local rate = m['Hit Rate'] or 100
+        if rate < 100 and rnd(1, 100) > rate then
+            srvPos, srvVel, srvTime = hrp.Position, nil, nil
+            return
+        end
+
+        local str  = (m['Magnitude'] or 400) * consumeBump()
+        local spr  = mx(m['Jitter'] or 3, 1)
+        local useY = m['Y Axis'] ~= false
+        local real = hrp.AssemblyLinearVelocity
+
+        local fn   = synth[m['Pattern']] or synth.Counter
+        local fake = fn(str, spr, useY, real, hrp)
+
+        srvPos, srvVel, srvTime = hrp.Position, fake, tick()
+
+        hrp.AssemblyLinearVelocity = fake
+        RunService.RenderStepped:Wait()
+        if hrp.Parent then
+            hrp.AssemblyLinearVelocity = real
+        end
+    end)
+end
+
+local function flip()
+    if live then stop() else start() end
+end
+
+-- ── overlay ────────────────────────────────────────────────────────
+local ui = Instance.new('ScreenGui')
+ui.Name           = 'antifuture_overlay'
+ui.IgnoreGuiInset = true
+ui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+pcall(function() ui.Parent = CoreGui end)
+if not ui.Parent then ui.Parent = me:WaitForChild('PlayerGui') end
+
+local dot = Instance.new('Frame')
+dot.BorderSizePixel  = 0
+dot.BackgroundColor3 = Color3.fromRGB(140, 255, 140)  -- light green
+dot.Visible          = false
+dot.Parent           = ui
+
+local txt = Instance.new('TextLabel')
+txt.BackgroundTransparency = 1
+txt.RichText               = true
+txt.Font                   = Enum.Font.GothamMedium
+txt.TextSize               = 10
+txt.TextColor3             = Color3.new(1, 1, 1)
+txt.AnchorPoint            = Vector2.new(0.5, 0)
+txt.Size                   = UDim2.fromOffset(180, 14)
+txt.Visible                = false
+txt.Parent                 = ui
+
+local st = Instance.new('UIStroke')
+st.Thickness = 1
+st.Parent    = txt
+
+drawConn = RunService.RenderStepped:Connect(function()
+    cam = ws.CurrentCamera
+    local c = cfg()
+    if not (live and c and c['Server']['View Position'] and srvPos) then
+        dot.Visible, txt.Visible = false, false
+        return
+    end
+
+    local gp = srvVel and srvTime
+        and srvPos + srvVel * math.clamp(tick() - srvTime, 0, 0.05)
+        or srvPos
+
+    local sp, on = cam:WorldToViewportPoint(gp)
+    if not (on and sp.Z > 0.5) then
+        dot.Visible, txt.Visible = false, false
+        return
+    end
+
+    local hrp = me.Character and me.Character:FindFirstChild('HumanoidRootPart')
+    local d   = hrp and math.floor((gp - hrp.Position).Magnitude + 0.5) or 0
+
+    dot.Size     = UDim2.fromOffset(8, 8)
+    dot.Position = UDim2.fromOffset(sp.X - 4, sp.Y - 4)
+    dot.Visible  = true
+
+    txt.Text     = ('<font color="rgb(140,255,140)">srv</font> <font color="rgb(170,170,170)">%d</font>'):format(d)
+    txt.Position = UDim2.fromOffset(sp.X, sp.Y + 12)
+    txt.Visible  = true
+end)
+
+-- ── keybind ────────────────────────────────────────────────────────
+inputConn = UIS.InputBegan:Connect(function(i, gp)
+    if gp or i.UserInputType ~= Enum.UserInputType.Keyboard then return end
+
+    local key = getBindKey()
+    local match = false
+    pcall(function()
+        if i.KeyCode == Enum.KeyCode[key:upper()] then match = true end
+    end)
+    if match then flip() end
+end)
+
+-- ── teardown ───────────────────────────────────────────────────────
+local function unload()
+    stop()
+    if drawConn  then drawConn:Disconnect()  end
+    if inputConn then inputConn:Disconnect() end
+    if ui.Parent then ui:Destroy() end
+    if getgenv then getgenv().antifuture_unload = nil end
+end
+
+if getgenv then
+    getgenv().antifuture_unload = unload
+    getgenv().antifuture = {
+        toggle = flip,
+        nudge  = bump,
+        active = function() return live end,
+        config = cfg,
+        unload = unload,
+    }
+end
+
+-- ── auto-start ─────────────────────────────────────────────────────
+do
+    local c = cfg()
+    if c and c['Active'] then task.defer(start) end
+end
 --=================================================================
 -- INVENTORY SORTER
 --=================================================================
@@ -6045,5 +6629,144 @@ Players.PlayerAdded:Connect(function(Player)
     if Player ~= Self then
         Player.CharacterAdded:Connect(HitboxOnSpawn)
         Player.CharacterRemoving:Connect(HitboxOnRemove)
+    end
+end)
+
+-- ==================== WALL HOP SYSTEM (FIXED) ====================
+
+local WallHopEnabled = getgenv().saved.Osiris['Player']['Wall Hop']
+
+local WallHopOsiris = {
+    TouchDistance       = 3.0,          -- increased for better detection
+    WallJumpUpBoost     = 23,
+    WallJumpAwayBoost   = 20,
+    WallNormalThreshold = 0.6,          -- relaxed slightly
+    CooldownTime        = 0.25,
+}
+
+local canWallHop = true
+local isTouchingWallHop = false
+local currentWallHopNormal = nil
+local lastWallHopTime = 0
+
+local function getCharacter()
+    local char = Self.Character
+    if not char then return nil, nil, nil end
+    local hum = char:FindFirstChild("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    return char, hum, root
+end
+
+local hopRayParams = RaycastParams.new()
+hopRayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+function checkForWallHop()
+    local char, hum, root = getCharacter()
+    if not root then return false, nil end
+    
+    hopRayParams.FilterDescendantsInstances = {char}
+    local origin = root.Position
+    
+    -- More directions – horizontal, diagonal, and slightly up/down
+    local dirs = {
+        -- horizontal
+        Vector3.new(1,0,0), Vector3.new(-1,0,0),
+        Vector3.new(0,0,1), Vector3.new(0,0,-1),
+        -- diagonal
+        Vector3.new(0.707,0,0.707), Vector3.new(-0.707,0,0.707),
+        Vector3.new(0.707,0,-0.707), Vector3.new(-0.707,0,-0.707),
+        -- upward angled (to catch walls while jumping)
+        Vector3.new(0.5,0.3,0), Vector3.new(-0.5,0.3,0),
+        Vector3.new(0,0.3,0.5), Vector3.new(0,0.3,-0.5),
+        Vector3.new(0.5,0.3,0.5), Vector3.new(-0.5,0.3,0.5),
+        Vector3.new(0.5,0.3,-0.5), Vector3.new(-0.5,0.3,-0.5),
+        -- downward angled (for when falling)
+        Vector3.new(0.5,-0.3,0), Vector3.new(-0.5,-0.3,0),
+        Vector3.new(0,-0.3,0.5), Vector3.new(0,-0.3,-0.5),
+    }
+    
+    for _, d in ipairs(dirs) do
+        local result = workspace:Raycast(origin, d * WallHopOsiris.TouchDistance, hopRayParams)
+        if result then
+            local normal = result.Normal
+            if math.abs(normal.Y) < WallHopOsiris.WallNormalThreshold then
+                -- Uncomment next line for debug
+                -- print("[WallHop] Wall found! Normal:", normal)
+                return true, normal
+            end
+        end
+    end
+    
+    return false, nil
+end
+
+function performWallHop()
+    if not WallHopEnabled then return end
+    if not canWallHop then return end
+    if not isTouchingWallHop then return end
+    
+    local char, hum, root = getCharacter()
+    if not hum or not root then return end
+    if hum.Health <= 0 then return end
+    
+    -- Only block if dead or climbing – allow all other states (including Running, Landed, etc.)
+    local state = hum:GetState()
+    if state == Enum.HumanoidStateType.Dead or state == Enum.HumanoidStateType.Climbing then
+        return
+    end
+    
+    if tick() - lastWallHopTime < WallHopOsiris.CooldownTime then return end
+    
+    local currentVel = root.AssemblyLinearVelocity
+    
+    -- Direction away from wall (horizontal only)
+    local awayDir = Vector3.new(currentWallHopNormal.X, 0, currentWallHopNormal.Z)
+    if awayDir.Magnitude > 0.01 then
+        awayDir = awayDir.Unit
+    else
+        awayDir = Vector3.zero
+    end
+    
+    root.AssemblyLinearVelocity = Vector3.new(
+        currentVel.X + (awayDir.X * WallHopOsiris.WallJumpAwayBoost),
+        WallHopOsiris.WallJumpUpBoost,
+        currentVel.Z + (awayDir.Z * WallHopOsiris.WallJumpAwayBoost)
+    )
+    
+    canWallHop = false
+    lastWallHopTime = tick()
+    
+    -- Uncomment for debug
+    -- print("[WallHop] HOPPED!")
+    
+    task.wait(WallHopOsiris.CooldownTime)
+    canWallHop = true
+end
+
+-- Only use Space key (JumpRequest may not exist in some executors)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.Space then
+        performWallHop()
+    end
+end)
+
+-- Update wall detection
+local _wallLastCheck = 0
+RunService.Heartbeat:Connect(function()
+    local now = os.clock()
+    if now - _wallLastCheck < 0.1 then return end   -- 10 Hz, not 60 Hz
+    _wallLastCheck = now
+
+    local char, hum, root = getCharacter()
+    if not char or not hum or hum.Health <= 0 then
+        if isTouchingWallHop then isTouchingWallHop = false end
+        return
+    end
+
+    local touching, normal = checkForWallHop()
+    if touching ~= isTouchingWallHop then
+        isTouchingWallHop = touching
+        currentWallHopNormal = normal
     end
 end)
