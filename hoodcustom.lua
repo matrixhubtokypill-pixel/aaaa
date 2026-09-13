@@ -6891,7 +6891,7 @@ end
     end
 end
 
-    if Script.Locals.SP2 or targetingMode == 'Auto' then
+if Script.Locals.SP2 then
     if targetingMode == 'Auto' or not Script.Locals.AimAssistTarget
        or not Script.Locals.AimAssistTarget.Character then
         Script.Locals.AimAssistTarget = Script:GetClosestPlayerToCursor(
