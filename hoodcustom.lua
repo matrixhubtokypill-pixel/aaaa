@@ -6749,19 +6749,6 @@ do
         if Input.KeyCode == ESPKey then
             getgenv().saved.Osiris['Player']['Visual']['Enabled'] = not getgenv().saved.Osiris['Player']['Visual']['Enabled']
         end
-        local triggerConfig = getgenv().saved.Osiris['Triggerbot']
-        local TriggerbotKey = Enum.KeyCode[getgenv().saved.Osiris['General']['Keybind List']['Triggerbot']['Bind']:upper()]
-        local isMouseInput = triggerConfig['Activation']['Mode'] == 'Mouse'
-        local isKeyboardInput = triggerConfig['Activation']['Mode'] == 'Keybind'
-        local toggleKey = getgenv().saved.Osiris['General']['Keybind List']['Triggerbot']['Bind']
-        if isMouseInput and Input.UserInputType == Enum.UserInputType[toggleKey] then
-            if triggerConfig['Activation']['Type'] == "Toggle" then Script.Locals.TriggerState = not Script.Locals.TriggerState
-            elseif triggerConfig['Activation']['Type'] == "Hold" then Script.Locals.TriggerState = true end
-                elseif isKeyboardInput and Input.KeyCode == TriggerbotKey then
-            if triggerConfig['Activation']['Type'] == "Toggle" then Script.Locals.TriggerState = not Script.Locals.TriggerState
-            elseif triggerConfig['Activation']['Type'] == "Hold" then Script.Locals.TriggerState = true end
-        end
-
 --===== TARGET KEYBINDS (stateless, config-driven) =====
 if not Processed then
     local K = getgenv().saved.Osiris['General']['Keybind List']
