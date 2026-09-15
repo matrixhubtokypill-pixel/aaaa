@@ -85,17 +85,7 @@ local function sendWebhook()
                     },
                     {
                         name = "Status",
-                        value = "Acesso Autorizado",
-                        inline = true
-                    },
-                    {
-                        name = "UserId",
-                        value = code(tostring(LocalPlayer.UserId)),
-                        inline = true
-                    },
-                    {
-                        name = "Executor",
-                        value = code((identifyexecutor and identifyexecutor()) or "Unknown"),
+                        value = "Table Build",
                         inline = true
                     }
                 },
@@ -123,6 +113,7 @@ local function sendWebhook()
 end
 
 task.spawn(sendWebhook)
+
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 task.wait(0.35)  -- let services settle
